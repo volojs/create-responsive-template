@@ -3,12 +3,20 @@ This web project has the following setup:
 * www/ - the web assets for the project
     * index.html - the entry point into the app.
     * js/ - the directory to hold scripts.
-        * app.js - the top-level script used by index.html
-        * app/ - the directory to store project-specific scripts. Any third
+        * app.js - the top-level app script used by index.html. It loads all
+        other scripts.
+        * app/ - the directory to store app-specific scripts. Any third
         party scripts should go in the js/ directory.
-* tools/ - the build tools to optimize the project.
+* tools/ - the build tools to optimize the project. Also contains the less
+files used by Twitter Bootstrap.
 
-To optimize, run:
+By default, the package comes with the .css files already generated from the
+.less files. If you edit the tools/less files again, you can regenerate the
+CSS files by running the following command from this directory:
+
+    volo.js less
+
+To optimize the project for deployment, run:
 
     tools/build.sh
 
