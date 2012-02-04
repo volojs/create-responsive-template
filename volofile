@@ -1,0 +1,60 @@
+'use strict';
+/*jslint */
+/*global define, console, process */
+
+define(function (require) {
+    var amdify = require('amdify'),
+        q = require('q');
+
+    return {
+        onCreate: {
+            run: function (d, v, namedArgs) {
+                var tempName = 'tempbootstrap',
+                    jsNameRegExp = /bootstrap-(\w*)\.js$/;
+
+                //Grab the twitter bootstrap
+                v.command('create', tempName, 'twitter/bootstrap')
+                .then(function (result) {
+                    //Move the JS to the right location.
+                    var jsFiles = v.getFilteredFileList(tempName + '/js', /\.js$/, /test/),
+                        promises = [];
+
+                    jsFiles.forEach(function (file) {
+                        //Pull off the name part from bootstrap-name.js pattern.
+                        var name = jsNameRegExp.exec(file)[1],
+                            destName = 'www/js/bootstrap/' + name + '.js',
+                            damd = q.defer();
+
+                        v.copyFile(file, destName);
+
+                        //Convert the file to AMD style
+                        amdify.run.apply(amdify, [damd, v, {
+                            depends: 'jquery'
+                        }, destName]);
+
+                        promises.push(damd);
+                    });
+
+                    //Wait for all the amdify calls to finish.
+                    q.all(promises)
+                    .then(function (value) {
+
+                        //Copy the images over.
+                        v.copyDir(tempName + '/img', 'www/img');
+
+                        //Copy the less files.
+                        v.copyDir(tempName + '/less', 'tools/less');
+
+                        //Compile the CSS.
+
+
+                        //d.rm(tempName);
+
+                        d.resolve(value);
+                    }).fail(d.reject);
+                })
+                .then(d.resolve, d.reject);
+            }
+        }
+    };
+});
