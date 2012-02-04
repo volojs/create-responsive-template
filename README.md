@@ -14,11 +14,12 @@ By default, the package comes with the .css files already generated from the
 .less files. If you edit the tools/less files again, you can regenerate the
 CSS files by running the following command from this directory:
 
-    volo.js less
+    > volo.js less
 
 To optimize the project for deployment, run:
 
-    tools/build.sh
+    > cd tools
+    > ./build.sh
 
 This will create an optimized version of the project in a **www-built**
 directory. The js/app.js file will be optimized to include all of its
