@@ -72,35 +72,18 @@ define(function (require) {
         },
         
         cache: function (d, v, namedArgs) {
-        	var files = v.getFilteredFileList(''), buildFile,
-        		appFiles, start, cacheFiles = [], manifest = 'CACHE MANIFEST\n';        	
+        	var appfiles = v.getFilteredFileList('www-built'), 
+        		manifest = 'CACHE MANIFEST\n\n'; 
         	
-        	files.forEach(function (file) {
-        		if (file.indexOf('build.js') !== -1) { 
-        			buildFile = file;	
-        			return false;
-        		}	        		        		
-        	});
-        	
-        	if (buildFile) { 
-        		buildFile = v.read(buildFile); // TODO: write fregex to extract dir names from buildFile.dir & buildFile.appDir
-        		appFiles = v.getFilteredFileList('./www')
-        					.concat(v.getFilteredFileList('./www-built'));
-        		
-        		appFiles.forEach(function (file) { // TODO: refine and optimize; this is not very elegant
-        			start = file.indexOf('/www/');
-        			start = (start !== -1) ? (start + 5) : 0;
-        			
-        			if (start)       			
-        				cacheFiles.push(file.substr(start, file.length));	        			
-        		});
-        		
-        		if (cacheFiles.length) { // TODO: is there are better way to create a buffer for file writing? 
-        			cacheFiles.forEach(function (file) { manifest += ('\n' + file); });        			
-        			manifest += ('\n#' + new Date().getTime()) // cache buster
-        			v.write('./manifest.appcache', manifest); // TODO: better name
-        		}
-        	} 	
+            appfiles = appfiles.map(function (file) {
+                var start = file.indexOf('/www/');
+                start = (start !== -1) ? (start + 5) : 0;
+                return file.substr(start, file.length);
+            }); 
+            
+            manifest += appfiles.join('\n');  
+            manifest += ('\n#' + new Date().getTime()) // cache buster
+            v.write('./manifest.appcache', manifest);
         }
     };
 });
