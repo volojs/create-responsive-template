@@ -73,7 +73,7 @@ define(function (require) {
         
         cache: function (d, v, namedArgs) {
         	var appfiles = v.getFilteredFileList('www-built'), 
-        		manifest = 'CACHE MANIFEST\n\n'; 
+                manifest = 'CACHE MANIFEST\n\n'; 
         	
             appfiles = appfiles.map(function (file) {
                 var start = file.indexOf('/www/');
