@@ -85,8 +85,7 @@ define(function (require) {
         },
         
         cache: function (d, v, namedArgs) {
-            var x = {},  manifest = v.read('./tools/manifest.appcache'), appfiles,
-                master = v.read('./www-built/index.html');
+            var x = {},  manifest = v.read('./tools/manifest.appcache'), appfiles;
                 x.include = ''; 
                 x.exclude = ''; // TODO: exclude require.js and app.js
             
@@ -96,9 +95,6 @@ define(function (require) {
                 start = (start !== -1) ? (start + 11) : 0;
                 return file.substr(start, file.length);
             });             
-            
-            master = master.replace(/<html>/, '<html manifest="manifest.appcache">');         
-            v.write('www-built/index.html', master);
 
             manifest = v.template(manifest, { files : appfiles.join('\n'), stamp : new Date().getTime() });                
             v.write('www-built/manifest.appcache', manifest);                              
