@@ -72,7 +72,7 @@ define(function (require) {
         },
         
         cache: function (d, v, namedArgs) {
-        	var appfiles = v.getFilteredFileList('www-built'), 
+            var appfiles = v.getFilteredFileList('www-built'), 
                 manifest = 'CACHE MANIFEST\n\n'; 
         	
             appfiles = appfiles.map(function (file) {
