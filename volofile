@@ -72,18 +72,21 @@ define(function (require) {
         },
         
         cache: function (d, v, namedArgs) {
-            var appfiles = v.getFilteredFileList('www-built'), 
-                manifest = 'CACHE MANIFEST\n\n'; 
-        	
-            appfiles = appfiles.map(function (file) {
-                var start = file.indexOf('/www-built/');
-                start = (start !== -1) ? (start + 11) : 0;
-                return file.substr(start, file.length);
-            }); 
-            
-            manifest += appfiles.join('\n');  
-            manifest += ('\n#' + new Date().getTime()) // cache buster
-            v.write('./manifest.appcache', manifest);
+            require(['text!./tools/manifest.appcache'], function (manifest) {
+                var appfiles = v.getFilteredFileList('www-built'), 
+                    buffer = ''; 
+                
+                appfiles = appfiles.map(function (file) {
+                    var start = file.indexOf('/www-built/'), file;
+                    start = (start !== -1) ? (start + 11) : 0;
+                    return file.substr(start, file.length);
+                }); 
+                
+                manifest = manifest.replace(/{files}/, appfiles.join('\n'));
+                manifest = manifest.replace(/{stamp}/, new Date().getTime()); // cache buster               
+
+                v.write('www-built/manifest.appcache', manifest);                  
+            });            
         }
     };
 });
