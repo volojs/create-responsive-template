@@ -60,6 +60,19 @@ define(function (require) {
             }
         },
 
+        build: function (d, v, namedArgs) {
+            q.call(function () {
+                if (v.exists('www-built')) {
+                    return v.rm('www-built');
+                }
+                return undefined;
+            })
+            .then(function () {
+                return v.exec('node tools/r.js -o tools/build.js');
+            })
+            .then(d.resolve, d.reject);
+        },
+
         less: function (d, v, namedArgs) {
             q.all([
                 v.exec('node tools/oneless.js tools/less/bootstrap.less > www/css/bootstrap.css'),
