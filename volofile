@@ -76,7 +76,7 @@ define(function (require) {
                 manifest = 'CACHE MANIFEST\n\n'; 
         	
             appfiles = appfiles.map(function (file) {
-                var start = file.indexOf('/www/');
+                var start = file.indexOf('/www-built/');
                 start = (start !== -1) ? (start + 5) : 0;
                 return file.substr(start, file.length);
             }); 
