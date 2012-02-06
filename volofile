@@ -84,20 +84,24 @@ define(function (require) {
             .fail(d.reject);
         },
         
-        cache: function (d, v, namedArgs) {
-            var x = {},  manifest = v.read('./tools/manifest.appcache'), appfiles;
-                x.include = ''; 
-                x.exclude = ''; // TODO: exclude require.js and app.js
+        appcache: function (d, v, namedArgs) {
+            var manifest = v.read('./tools/manifest.appcache'), appfiles,
+                master = v.read('./www-built/index.html'), 
+                exclude = 'require\.js$|app\.js$';
             
-            appfiles = v.getFilteredFileList('www-built', x);  
+            appfiles = v.getFilteredFileList('www-built', null, exclude);             
             appfiles = appfiles.map(function (file) {
                 var start = file.indexOf('/www-built/'), file;
                 start = (start !== -1) ? (start + 11) : 0;
                 return file.substr(start, file.length);
-            });             
+            });    
+            
+            master = master.replace(/<html>/, '<html manifest="manifest.appcache">'); 
+            v.write('www-built/index.html', master);         
 
             manifest = v.template(manifest, { files : appfiles.join('\n'), stamp : new Date().getTime() });                
-            v.write('www-built/manifest.appcache', manifest);                              
+            v.write('www-built/manifest.appcache', manifest);
+            console.log(manifest);                              
         }
     };
 });
