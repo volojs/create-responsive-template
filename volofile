@@ -1,5 +1,5 @@
 'use strict';
-/*jslint */
+/*jslint regexp: false */
 /*global define, console, process */
 
 define(function (require) {
@@ -60,17 +60,80 @@ define(function (require) {
             }
         },
 
-        build: function (d, v, namedArgs) {
-            q.call(function () {
-                if (v.exists('www-built')) {
-                    return v.rm('www-built');
-                }
-                return undefined;
-            })
-            .then(function () {
-                return v.exec('node tools/r.js -o tools/build.js');
-            })
-            .then(d.resolve, d.reject);
+        build: {
+            flags: {
+                //Does not print the build output.
+                'q': 'quiet',
+                //Uses almond
+                'almond': 'almond'
+            },
+
+            run: function (d, v, namedArgs) {
+                q.call(function () {
+                    //Remove the old build.
+                    if (v.exists('www-built')) {
+                        v.rm('www-built');
+                    }
+
+                    //Copy the directory for output.
+                    v.copyDir('www', 'www-built');
+
+                    //Remove the js dir from the built area, will be replaced
+                    //by an optimized app.js
+                    v.rm('www-built/js');
+                })
+                .then(function () {
+                    //Do the CSS optimization
+                    return v.spawn('node', ['tools/r.js', '-o',
+                                            'cssIn=www/css/app.css',
+                                            'out=www-built/css/app.css'], {
+                        useConsole: !namedArgs.quiet
+                    });
+                })
+                .then(function () {
+                    //JS go time
+                    if (namedArgs.almond) {
+                        //The all-in-one option.
+                        return v.spawn('node', ['tools/r.js', '-o',
+                                        'baseUrl=www/js',
+                                        'paths.almond=../../tools/almond',
+                                        'name=almond',
+                                        'include=app',
+                                        'out=www-built/js/app.js'], {
+                            useConsole: !namedArgs.quiet
+                        });
+                    } else {
+                        //Still use require.js to load the app.js file.
+                        v.copyFile('www/js/require.js', 'www-built/js/require.js');
+
+                        return v.spawn('node', ['tools/r.js', '-o',
+                                        'baseUrl=www/js',
+                                        'name=app',
+                                        'out=www-built/js/app.js'], {
+                            useConsole: !namedArgs.quiet
+                        });
+                    }
+                })
+                .then(function (buildOutput) {
+                    //If almond is in use, it is built into app.js, so need
+                    //to update the script tag to just load app.js instead.
+                    if (namedArgs.almond) {
+                        var indexName = 'www-built/index.html',
+                            contents = v.read(indexName),
+                            scriptRegExp = /(<script[^>]+data-main="[^"]+"[^>]+)(src="[^"]+")([^>]+>\s*<\/script>)/;
+
+                        contents = contents.replace(scriptRegExp, function (match, pre, script, post) {
+                            return pre + 'src="js/app.js"' + post;
+                        });
+
+                        v.write(indexName, contents);
+                    }
+                    return buildOutput;
+                })
+                .then(function (buildOutput) {
+                    d.resolve();
+                }, d.reject);
+            }
         },
 
         less: function (d, v, namedArgs) {
