@@ -72,17 +72,15 @@ define(function (require) {
                 q.call(function () {
                     //Remove the old build.
                     if (v.exists('www-built')) {
-                        return v.rm('www-built');
+                        v.rm('www-built');
                     }
-                    return undefined;
-                })
-                .then(function () {
+
                     //Copy the directory for output.
                     v.copyDir('www', 'www-built');
 
                     //Remove the js dir from the built area, will be replaced
                     //by an optimized app.js
-                    return v.rm('www-built/js');
+                    v.rm('www-built/js');
                 })
                 .then(function () {
                     //Do the CSS optimization
@@ -94,10 +92,8 @@ define(function (require) {
                 })
                 .then(function () {
                     //JS go time
-                    v.copyFile('www/js/require.js', 'www-built/js/require.js');
-
                     if (namedArgs.almond) {
-
+                        //The all-in-one option.
                         return v.spawn('node', ['tools/r.js', '-o',
                                         'baseUrl=www/js',
                                         'paths.almond=../../tools/almond',
@@ -107,6 +103,9 @@ define(function (require) {
                             useConsole: !namedArgs.quiet
                         });
                     } else {
+                        //Still use require.js to load the app.js file.
+                        v.copyFile('www/js/require.js', 'www-built/js/require.js');
+
                         return v.spawn('node', ['tools/r.js', '-o',
                                         'baseUrl=www/js',
                                         'name=app',
