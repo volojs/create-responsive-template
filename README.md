@@ -18,8 +18,7 @@ CSS files by running the following command from this directory:
 
 To optimize the project for deployment, run:
 
-    > cd tools
-    > ./build.sh
+    > volo.js build
 
 This will create an optimized version of the project in a **www-built**
 directory. The js/app.js file will be optimized to include all of its
