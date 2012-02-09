@@ -1,12 +1,19 @@
-'use strict';
-/*jslint regexp: false */
+/*jslint regexp: true */
 /*global define, console, process */
 
 define(function (require) {
+    'use strict';
+
     var amdify = require('amdify'),
-        q = require('q');
+        q = require('q'),
+        crypto = require('crypto'),
+        fs = require('fs'),
+        path = require('path');
 
     return {
+        //Run as the result of first setting up this project via a
+        //"volo create" call. Gets the twitter bootstrap code, and
+        //jQuery.
         onCreate: {
             run: function (d, v, namedArgs) {
                 var tempName = 'tempbootstrap',
@@ -60,12 +67,16 @@ define(function (require) {
             }
         },
 
+        //Builds the JS and CSS into one file each. If you want to do
+        //dynamic loading of scripts, pass -dynamic to the build, and
+        //require.js will be used to load scripts.
         build: {
             flags: {
                 //Does not print the build output.
                 'q': 'quiet',
-                //Uses almond
-                'almond': 'almond'
+                //Uses dynamic loading via require.js instead of building
+                //all the modules in with almond.
+                'dynamic': 'dynamic'
             },
 
             run: function (d, v, namedArgs) {
@@ -75,40 +86,41 @@ define(function (require) {
                         v.rm('www-built');
                     }
 
-                    //Copy the directory for output.
-                    v.copyDir('www', 'www-built');
+                    if (!namedArgs.dynamic) {
+                        //Copy the directory for output.
+                        v.copyDir('www', 'www-built');
 
-                    //Remove the js dir from the built area, will be replaced
-                    //by an optimized app.js
-                    v.rm('www-built/js');
-                })
-                .then(function () {
-                    //Do the CSS optimization
-                    return v.spawn('node', ['tools/r.js', '-o',
-                                            'cssIn=www/css/app.css',
-                                            'out=www-built/css/app.css'], {
-                        useConsole: !namedArgs.quiet
-                    });
+                        //Remove the js dir from the built area, will be
+                        //replaced by an optimized app.js
+                        v.rm('www-built/js');
+
+                        //Do the CSS optimization
+                        return v.spawn('node', ['tools/r.js', '-o',
+                                                'cssIn=www/css/app.css',
+                                                'out=www-built/css/app.css'], {
+                            useConsole: !namedArgs.quiet
+                        });
+                    }
+                    return undefined;
                 })
                 .then(function () {
                     //JS go time
-                    if (namedArgs.almond) {
+                    if (namedArgs.dynamic) {
+                        //Still use require.js to load the app.js file.
+                        return v.spawn('node', ['tools/r.js', '-o',
+                                        'appDir=www',
+                                        'baseUrl=js',
+                                        'name=app',
+                                        'dir=www-built'], {
+                            useConsole: !namedArgs.quiet
+                        });
+                    } else {
                         //The all-in-one option.
                         return v.spawn('node', ['tools/r.js', '-o',
                                         'baseUrl=www/js',
                                         'paths.almond=../../tools/almond',
                                         'name=almond',
                                         'include=app',
-                                        'out=www-built/js/app.js'], {
-                            useConsole: !namedArgs.quiet
-                        });
-                    } else {
-                        //Still use require.js to load the app.js file.
-                        v.copyFile('www/js/require.js', 'www-built/js/require.js');
-
-                        return v.spawn('node', ['tools/r.js', '-o',
-                                        'baseUrl=www/js',
-                                        'name=app',
                                         'out=www-built/js/app.js'], {
                             useConsole: !namedArgs.quiet
                         });
@@ -136,6 +148,69 @@ define(function (require) {
             }
         },
 
+        //Generates an SHA1 digest that represents the contents of the
+        //a directory. Call it like so: "volo digest dir=path/to/directory"
+        digest: {
+            validate: function (namedArgs) {
+                var dir = namedArgs.dir;
+                if (!dir) {
+                    return new Error('Please specify a target directory for ' +
+                                     'the digest');
+                }
+                if (!path.existsSync(dir)) {
+                    return new Error('Target directory for digest does ' +
+                                     'not exist: ' + dir);
+                }
+                return undefined;
+            },
+
+            run: function (d, v, namedArgs) {
+                var dir = namedArgs.dir,
+                    files = v.getFilteredFileList(dir),
+                    shasum = crypto.createHash('sha1'),
+                    digests = [],
+                    i = 0;
+
+                function getDigest(fileName) {
+                    var shaSum = crypto.createHash('sha1'),
+                        d = q.defer(),
+                        stream = fs.ReadStream(fileName);
+
+                    stream.on('data', function(data) {
+                        shaSum.update(data);
+                    });
+
+                    stream.on('end', function() {
+                        d.resolve(shaSum.digest('base64'));
+                    });
+
+                    return d.promise;
+                }
+
+                function digestFile(fileName) {
+                    getDigest(fileName).then(function (digest) {
+                        var shaSum;
+
+                        digests[i] = digest;
+                        i += 1;
+
+                        if (i < files.length) {
+                            digestFile(files[i]);
+                        } else {
+                            //All done, now generate the final digest,
+                            //using the combination of the other digests
+                            shaSum = crypto.createHash('sha1');
+                            shaSum.update(digests.join(','));
+                            d.resolve(shaSum.digest('base64'));
+                        }
+                    });
+                }
+
+                digestFile(files[0]);
+            }
+        },
+
+        //Runs less on the .less files in tools/less to generate the CSS files.
         less: function (d, v, namedArgs) {
             q.all([
                 v.exec('node tools/oneless.js tools/less/bootstrap.less > www/css/bootstrap.css'),
