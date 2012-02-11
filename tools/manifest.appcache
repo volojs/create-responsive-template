@@ -2,8 +2,6 @@ CACHE MANIFEST
 # {stamp}
 
 CACHE:
-js/app.js
-js/require.js
 {files}
 
 # catch-all for anything else

@@ -144,7 +144,7 @@ define(function (require) {
                 })
                 .then(function (buildOutput) {
                     d.resolve();
-                }, d.reject);                
+                }, d.reject);
             }
         },
 
@@ -167,7 +167,6 @@ define(function (require) {
             run: function (d, v, namedArgs) {
                 var dir = namedArgs.dir,
                     files = v.getFilteredFileList(dir),
-                    shasum = crypto.createHash('sha1'),
                     digests = [],
                     i = 0;
 
@@ -221,32 +220,31 @@ define(function (require) {
             })
             .fail(d.reject);
         },
-        
+
         appcache: function (d, v, namedArgs) {
             v.command('build')
             .then(function () {
                 var manifest = v.read('./tools/manifest.appcache'), appfiles,
-                    master = v.read('./www-built/index.html'), 
-                    exclude = 'require\.js$|app\.js$';
-                
-                appfiles = v.getFilteredFileList('www-built', null, exclude);             
+                    master = v.read('./www-built/index.html');
+
+                appfiles = v.getFilteredFileList('www-built');
                 appfiles = appfiles.map(function (file) {
-                    var start = file.indexOf('/www-built/'), file;
+                    var start = file.indexOf('/www-built/');
                     start = (start !== -1) ? (start + 11) : 0;
                     return file.substr(start, file.length);
-                });    
-                
+                });
+
                 // TODO: is there more efficient way to replace or only add the space when necessary?
-                master = master.replace(/<html\s?/, '<html manifest="manifest.appcache" ').replace(/manifest\.appcache"\s>/, 'manifest.appcache">'); 
-                v.write('www-built/index.html', master);         
-    
-                manifest = v.template(manifest, { files : appfiles.join('\n'), stamp : new Date().getTime() });                
-                v.write('www-built/manifest.appcache', manifest);                         
+                master = master.replace(/<html\s?/, '<html manifest="manifest.appcache" ').replace(/manifest\.appcache"\s>/, 'manifest.appcache">');
+                v.write('www-built/index.html', master);
+
+                manifest = v.template(manifest, { files : appfiles.join('\n'), stamp : new Date().getTime() });
+                v.write('www-built/manifest.appcache', manifest);
             })
             .then(function () {
                 d.resolve();
             })
-            .fail(d.reject);                    
+            .fail(d.reject);
         }
     };
 });
