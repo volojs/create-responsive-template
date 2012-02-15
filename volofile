@@ -234,12 +234,17 @@ define(function (require) {
                     return file.substr(start, file.length);
                 });
 
-                // TODO: is there more efficient way to replace or only add the space when necessary?
                 master = master.replace(/<html\s?/, '<html manifest="manifest.appcache" ').replace(/manifest\.appcache"\s>/, 'manifest.appcache">');
                 v.write('www-built/index.html', master);
 
-                manifest = v.template(manifest, { files : appfiles.join('\n'), stamp : new Date().getTime() });
-                v.write('www-built/manifest.appcache', manifest);
+                return v.command('digest', 'dir=www-built')
+                .then(function (stamp) {
+                    manifest = v.template(manifest, {
+                        files : appfiles.join('\n'),
+                        stamp : stamp
+                    });
+                    v.write('www-built/manifest.appcache', manifest);
+                });
             })
             .then(function () {
                 d.resolve();
