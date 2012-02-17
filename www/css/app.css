@@ -7,3 +7,13 @@
         padding-top: 60px;
     }
 }
+
+/* Just some styles to use for this demo, you can remove them
+   for your project. */
+.demo .span4 {
+    text-align: center;
+}
+.demo ul {
+    text-align: left;
+    padding-left: 20px;
+}

@@ -15,17 +15,19 @@ define(function (require) {
     var $ = require('jquery'),
         appCache = require('appCache'),
         network = require('network'),
-        networkDom, appCacheStatusDom, appCacheEventDom, updateAlertDom;
+        networkDom, appCacheStatusDom, appCacheEventDom, updateAlertDom,
+        checkUpdateDom, eventSectionDom;
 
     // Dependencies that do not have an export of their own, just attach
     // to other objects, like jQuery.
     require('bootstrap/modal');
     require('bootstrap/transition');
-    require('bootstrap/alert');
 
     // Handles update to the DOM that shows the network state.
     function updateNetworkDisplay(on) {
-        networkDom.text(on? 'on' : 'off');
+        networkDom.text(on ? 'on' : 'off');
+        networkDom.toggleClass('label-success', on);
+        networkDom.toggleClass('label-important', !on);
     }
 
     // Shows updates to appCache state.
@@ -33,6 +35,10 @@ define(function (require) {
         var message;
 
         appCacheStatusDom.text(appCache.getStatusName());
+
+        // Make sure the check for update button and event list are visible.
+        checkUpdateDom.show();
+        eventSectionDom.show();
 
         if (eventName) {
             if (eventName === 'updateready') {
@@ -42,10 +48,14 @@ define(function (require) {
             }
 
             message = eventName;
-            if (eventName === 'progress') {
+            if (eventName === 'progress' && evt.total) {
                 message += ': ' + evt.loaded + ' of ' + evt.total;
+            } else if (eventName === 'error') {
+                message += ': make sure the manifest file is in the correct ' +
+                           'place and .appcache files are served with MIME ' +
+                           'type: text/cache-manifest';
             }
-            appCacheEventDom.prepend('<li>' + message + '</li>');
+            appCacheEventDom.prepend('<div>' + message + '</div>');
         }
     }
 
@@ -64,7 +74,8 @@ define(function (require) {
         appCacheStatusDom = $('#appCacheStatus');
         appCacheEventDom = $('#appCacheEvent');
         updateAlertDom = $('#updateAlert');
-        updateAlertDom.hide();
+        checkUpdateDom = $('#checkUpdate');
+        eventSectionDom = $('#eventSection');
 
         // Listen for any of the appCache events.
         appCache.eventNames.forEach(function (name) {
@@ -75,6 +86,10 @@ define(function (require) {
         $('#updateButton').bind('click', function (evt) {
             appCache.swapCache();
             window.location.reload();
+        });
+
+        $('#checkUpdate').bind('click', function (evt) {
+            appCache.update();
         });
     });
 });
