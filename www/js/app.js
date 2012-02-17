@@ -15,12 +15,13 @@ define(function (require) {
     var $ = require('jquery'),
         appCache = require('appCache'),
         network = require('network'),
-        networkDom, appCacheStatusDom, appCacheEventDom;
+        networkDom, appCacheStatusDom, appCacheEventDom, updateAlertDom;
 
     // Dependencies that do not have an export of their own, just attach
     // to other objects, like jQuery.
     require('bootstrap/modal');
     require('bootstrap/transition');
+    require('bootstrap/alert');
 
     // Handles update to the DOM that shows the network state.
     function updateNetworkDisplay(on) {
@@ -28,12 +29,23 @@ define(function (require) {
     }
 
     // Shows updates to appCache state.
-    function updateAppCacheDisplay(eventName) {
+    function updateAppCacheDisplay(eventName, evt) {
+        var message;
 
         appCacheStatusDom.text(appCache.getStatusName());
 
         if (eventName) {
-            appCacheEventDom.prepend('<li>' + eventName + '</li>');
+            if (eventName === 'updateready') {
+                updateAlertDom.show();
+            } else {
+                updateAlertDom.hide();
+            }
+
+            message = eventName;
+            if (eventName === 'progress') {
+                message += ': ' + evt.loaded + ' of ' + evt.total;
+            }
+            appCacheEventDom.prepend('<li>' + message + '</li>');
         }
     }
 
@@ -51,10 +63,18 @@ define(function (require) {
         // Display current appCache state.
         appCacheStatusDom = $('#appCacheStatus');
         appCacheEventDom = $('#appCacheEvent');
+        updateAlertDom = $('#updateAlert');
+        updateAlertDom.hide();
 
         // Listen for any of the appCache events.
         appCache.eventNames.forEach(function (name) {
             appCache.on(name, updateAppCacheDisplay.bind(null, name));
+        });
+
+        // Wire up appCache Update button.
+        $('#updateButton').bind('click', function (evt) {
+            appCache.swapCache();
+            window.location.reload();
         });
     });
 });

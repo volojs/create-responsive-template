@@ -48,7 +48,7 @@ define(function () {
         },
 
         swapCache: function () {
-            return cache.update();
+            return cache.swapCache();
         },
 
         abort: function () {
