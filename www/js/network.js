@@ -18,11 +18,19 @@ define(function () {
         return navigator.onLine;
     }
 
+    /**
+     * Listen to a network event.
+     * The two acceptable state values are 'online' and 'offline'
+     */
     network.on = function (state, func) {
         return window.addEventListener(state, func, false);
     };
 
-    network.remove = function(state, func) {
+    /**
+     * Remove a listener for a network event.
+     * The two acceptable state values are 'online' and 'offline'
+     */
+    network.removeListener = function(state, func) {
         return window.removeEventListener(state, func, false);
     };
 
