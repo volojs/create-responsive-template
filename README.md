@@ -118,7 +118,7 @@ This will run the build command, then generate the manifest from the files in
 * [HTML5 Rocks - Working Off the Grid](http://www.html5rocks.com/en/mobile/workingoffthegrid.html)
 * [Twitter Bootstrap](http://twitter.github.com/bootstrap/)
 * [AppCache](https://developer.mozilla.org/en/Using_Application_Cache)
-* Online detection
+* [Online detection](https://developer.mozilla.org/en/DOM/window.navigator.onLine)
 * [RequireJS API](http://requirejs.org/docs/api.html)
 * [RequireJS optimizer](http://requirejs.org/docs/optimization.html)
 * [volo](https://github.com/volojs/volo)
