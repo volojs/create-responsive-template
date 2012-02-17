@@ -66,9 +66,12 @@ define(function (require) {
         updateNetworkDisplay(network());
 
         // Listen for changes in the network.
-        // Use bind's partial argument passing.
-        network.on('online', updateNetworkDisplay.bind(null, true));
-        network.on('offline', updateNetworkDisplay.bind(null, false));
+        network.on('online', function () {
+            updateNetworkDisplay(true);
+        });
+        network.on('offline', function () {
+            updateNetworkDisplay(false);
+        });
 
         // Display current appCache state.
         appCacheStatusDom = $('#appCacheStatus');
@@ -79,7 +82,9 @@ define(function (require) {
 
         // Listen for any of the appCache events.
         appCache.eventNames.forEach(function (name) {
-            appCache.on(name, updateAppCacheDisplay.bind(null, name));
+            appCache.on(name, function (evt) {
+                updateAppCacheDisplay(name, evt);
+            });
         });
 
         // Wire up appCache Update button.
