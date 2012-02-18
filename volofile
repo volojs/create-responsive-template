@@ -131,6 +131,14 @@ define(function (require) {
                     }
                 })
                 .then(function (buildOutput) {
+                    //Remove all the CSS except for the app.css, since it
+                    //inlines all the other ones.
+                    v.getFilteredFileList('www-built/css').forEach(function (path) {
+                        if (!/app\.css$/.test(path)) {
+                            v.rm(path);
+                        }
+                    });
+
                     //If almond is in use, it is built into app.js, so need
                     //to update the script tag to just load app.js instead.
                     if (!namedArgs.dynamic) {
