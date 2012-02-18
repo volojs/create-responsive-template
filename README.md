@@ -4,7 +4,7 @@ It can be challenging to set up a good looking web project whose layout responds
 well to different screen resolutions and work well in mobile and offline
 environments.
 
-This project template sets up a repsonsive webapp that uses the
+This project template sets up a repsonsive webapp that uses
 [Twitter Bootstrap](http://twitter.github.com/bootstrap/) along with
 [AppCache](https://developer.mozilla.org/en/Using_Application_Cache) and
 [network events](https://developer.mozilla.org/en/DOM/window.navigator.onLine).
@@ -44,7 +44,7 @@ browser, then use the built, AppCache-enabled project in `myproject/www-built`.
 
 volo grabbed this project template from GitHub, then:
 
-* Fetched the Twitter Bootstrap code from GitHub
+* Fetched Twitter Bootstrap code from GitHub
 * Fetched jQuery
 
 It generated the responsive CSS files from Bootstrap's LESS files, and then
@@ -64,16 +64,7 @@ with `volo add`. To get the modular versions of Underscore and
 Backbone, run these commands in the `myproject` directory:
 
     volo add amdjs/underscore
-    volo add/amdjs/backbone
-
-If you prefer to use Dojo and Dijit:
-
-    volo add dojo/dojo
-    volo add dojo/dijit
-
-If you use Dojo/Dijit, then you will likely want to change the project to not use
-require.js. Modify `index.html` and `volofile` and make the appropriate
-adjustments.
+    volo add amdjs/backbone
 
 ## Project Layout
 
