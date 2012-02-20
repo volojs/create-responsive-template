@@ -16,7 +16,7 @@ or [Chrome Store Apps](https://chrome.google.com/webstore/category/home).
 Since the goal of the project is to target more modern browsers with AppCache
 support, older browsers like IE 6-9 are not supported.
 
-A video about the project template: https://vimeo.com/36997211
+**Video about the template**: https://vimeo.com/36997211
 
 ## Usage
 
