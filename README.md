@@ -16,10 +16,7 @@ or [Chrome Store Apps](https://chrome.google.com/webstore/category/home).
 Since the goal of the project is to target more modern browsers with AppCache
 support, older browsers like IE 6-9 are not supported.
 
-A video about the project template:
-
-<iframe src="http://player.vimeo.com/video/36997211" width="500" height="281"
-frameborder="0" webkitAllowFullScreen mozallowfullscreen allowFullScreen></iframe>
+A video about the project template: https://vimeo.com/36997211
 
 ## Usage
 
