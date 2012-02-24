@@ -63,6 +63,8 @@ define(function (require) {
                 // Button is in signed out state, Sign in.
                 user.signIn(function () {
                     updateState(dom);
+                }, function (error) {
+                    $(document).trigger('auth/error', error);
                 });
             }
         })

@@ -21,6 +21,7 @@ define(function (require) {
 
     // Dependencies that do not have an export of their own, just attach
     // to other objects, like jQuery.
+    require('bootstrap/alert');
     require('bootstrap/modal');
     require('bootstrap/transition');
     require('auth/button');
@@ -63,6 +64,8 @@ define(function (require) {
 
     // Wait for the DOM to be ready before showing the network state.
     $(function () {
+        var docDom = $(document);
+
         // Display the current network state.
         networkDom = $('#networkStatus');
         updateNetworkDisplay(network());
@@ -96,6 +99,12 @@ define(function (require) {
         });
         $('#checkUpdate').bind('click', function (evt) {
             appCache.update();
+        });
+
+        // Wire up pub/sub listeners
+        docDom.bind('auth/error', function (evt, error) {
+            $('#authErrorDetails').text(error.message);
+            $('#authError').show();
         });
     });
 });

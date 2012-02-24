@@ -74,10 +74,16 @@ define(function (require, exports, module) {
                             data: 'assertion=' + encodeURIComponent(assertion),
                             dataType: 'json',
                             success: function (data, textStatus, jqXhr) {
-                                userData = data;
-                                localStorage.setItem(userKey,
+                                if (data.error) {
+                                    callError(data.error,
+                                              'browserIdError',
+                                              errback);
+                                } else {
+                                    userData = data;
+                                    localStorage.setItem(userKey,
                                                      JSON.stringify(userData));
-                                callback(user.get());
+                                    callback(user.get());
+                                }
                             },
                             error: function(jqXhr, textStatus, errorThrown) {
                                 callError(textStatus,

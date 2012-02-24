@@ -78,7 +78,16 @@ define(function (require) {
 
                     res.on('end', function () {
                         if (!hasError) {
-                            onDone(200, body);
+                            body = JSON.parse(body);
+                            if (body.status !== 'okay') {
+                                onDone(200, JSON.stringify({
+                                    error: body.reason || 'unknown'
+                                }));
+                            } else {
+                                // Strip out the status since it is not needed
+                                delete body.status;
+                                onDone(200, JSON.stringify(body));
+                            }
                         }
                     });
                 });
@@ -124,7 +133,7 @@ define(function (require) {
                     body += d;
                 });
                 req.on('end', function () {
-                    data = queryString.parse(data);
+                    data = queryString.parse(body);
                     callApiHandler(handler, data, res);
                 });
             }
