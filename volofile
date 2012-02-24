@@ -271,6 +271,14 @@ define(function (require) {
                           '.appcache files to be: text/cache-manifest');
             })
             .fail(d.reject);
+        },
+
+        serve: function (d, v, namedArgs, docRoot) {
+            namedArgs.docRoot = docRoot || namedArgs.docRoot || 'www';
+
+            require(['./tools/createServer.js'], function (createServer) {
+                createServer(namedArgs);
+            });
         }
     };
 });

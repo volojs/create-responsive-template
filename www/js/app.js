@@ -9,6 +9,7 @@
 
 /*global window */
 
+// Define the app module.
 define(function (require) {
     'use strict';
 
@@ -22,6 +23,7 @@ define(function (require) {
     // to other objects, like jQuery.
     require('bootstrap/modal');
     require('bootstrap/transition');
+    require('auth/button');
 
     // Handles update to the DOM that shows the network state.
     function updateNetworkDisplay(on) {
@@ -87,12 +89,11 @@ define(function (require) {
             });
         });
 
-        // Wire up appCache Update button.
+        // Wire up appCache buttons.
         $('#updateButton').bind('click', function (evt) {
             appCache.swapCache();
             window.location.reload();
         });
-
         $('#checkUpdate').bind('click', function (evt) {
             appCache.update();
         });
