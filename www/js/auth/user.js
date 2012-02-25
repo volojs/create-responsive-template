@@ -6,16 +6,50 @@ define(function (require, exports, module) {
 
     var authUrl = '/api/auth',
         $ = require('jquery'),
+        pub = require('pub'),
         // States are 'fetching', 'available' and 'error'
         browserIdLoadState = 'fetching',
         userKey = module.id,
         userData = localStorage.getItem(userKey) || null,
         user, req, oldOnError;
 
+    function clearData() {
+        userData = null;
+        localStorage.removeItem(userKey);
+    }
+
+    //Stand in function placeholder
+    function noop() {}
+
+    function callError(msg, type, errback) {
+        var err = new Error(msg);
+        err.type = type;
+        setTimeout(function () {
+            errback(err);
+            pub(userKey + '/error', err);
+        }, 10);
+    }
+
     // localStorage value is a JSON string since that is most portable. Convert
     // it to a real object if there is a value.
     if (userData) {
         userData = JSON.parse(userData);
+
+        // Confirm the server still thinks the user should be logged in.
+        // This call assumes an error means the user is offline, but you
+        // may want to implement an error handler in real code.
+        $.ajax({
+            type: 'POST',
+            url: authUrl + '/confirm',
+            data: 'serverInfo=' + encodeURIComponent(JSON.stringify(userData.serverInfo)),
+            dataType: 'json',
+            success: function (data, textStatus, jqXhr) {
+                if (data.status === 'expired') {
+                    clearData();
+                    pub(userKey + '/signedOut');
+                }
+            }
+        });
     }
 
     // Load up the browserid code, but do this not as a module dependency,
@@ -45,17 +79,6 @@ define(function (require, exports, module) {
     req(['https://browserid.org/include.js'], function () {
         browserIdLoadState = 'available';
     });
-
-    //Stand in function placeholder
-    function noop() {}
-
-    function callError(msg, type, errback) {
-        var err = new Error(msg);
-        err.type = type;
-        setTimeout(function () {
-            errback(err);
-        }, 10);
-    }
 
     user = {
         get: function () {
@@ -107,9 +130,29 @@ define(function (require, exports, module) {
         },
 
         signOut: function (callback, errback) {
-            userData = null;
-            localStorage.removeItem(userKey);
-            setTimeout(callback, 10);
+            callback = callback || noop;
+
+            // Confirm the server still thinks the user should be logged in.
+            // This call assumes an error means the user is offline, but you
+            // may want to implement an error handler in real code.
+            $.ajax({
+                type: 'POST',
+                url: authUrl + '/signout',
+                data: 'serverInfo=' + encodeURIComponent(JSON.stringify(userData.serverInfo)),
+                dataType: 'json',
+                complete: function (jqXhr, textStatus) {
+                    // Do not care if it succeeded or failed. You may want
+                    // to do separate 'success' and 'error' flows. In
+                    // particular, if a timeout or server not reachable, it
+                    // may indicate offline status, and depending on your
+                    // server state, you may want to remember to send the
+                    // signout again at a later time when the network is
+                    // available.
+                    clearData();
+                    callback();
+                    pub(userKey + '/signedOut');
+                }
+            });
         }
     };
 

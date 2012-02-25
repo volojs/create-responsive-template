@@ -4,7 +4,9 @@ define(function (require) {
     'use strict';
 
     var $ = require('jquery'),
-        user = require('./user');
+        pub = require('pub'),
+        user = require('./user'),
+        containerDom;
 
     // Dependencies that do not return a module value.
     require('bootstrap/dropdown');
@@ -12,19 +14,23 @@ define(function (require) {
     // Updates the state of the user button.
     function updateState(dom, stateDataId) {
         var userData = user.get(),
-            msgDom = dom.find('.btn-auth-msg'),
+            msgDom = dom.find('.auth-msg'),
+            caretDom = dom.find('.caret'),
             text, state;
 
         if (stateDataId) {
             text = dom.data(stateDataId);
             state = stateDataId;
+            caretDom.hide();
         } else if (userData) {
             text = userData.email;
             state = 'signedIn';
+            caretDom.show();
         } else {
             // Signed out.
             text = dom.data('auth-signin');
             state = 'signedOut';
+            caretDom.hide();
         }
 
         msgDom.text(text);
@@ -38,12 +44,13 @@ define(function (require) {
 
     // Set up any browser ID buttons on startup, and wire up click handler.
     $(function () {
-        $('.btn-auth')
-        .on('click.auth', function (evt) {
+        containerDom =  $('.auth-container');
+
+        containerDom.on('click.auth', function (evt) {
             var node = evt.target,
                 href = evt.target.href,
                 // Make sure to have the top level node for the button.
-                dom = $(node).parents('.btn-auth');
+                dom = $(node).parents('.auth-container');
 
             href = href && href.split('#')[1];
 
@@ -53,9 +60,9 @@ define(function (require) {
                 // Change button to show "signing out".
                 updateState(dom, 'auth-signingout');
 
-                user.signOut(function () {
-                   updateState(dom);
-                });
+                // The state will be updated by listening to the
+                // signedOut topic below.
+                user.signOut();
             } else if (isSignedOutButtonState(dom)) {
                 evt.preventDefault();
                 evt.stopPropagation();
@@ -63,13 +70,16 @@ define(function (require) {
                 // Button is in signed out state, Sign in.
                 user.signIn(function () {
                     updateState(dom);
-                }, function (error) {
-                    $(document).trigger('auth/error', error);
                 });
             }
-        })
-        .each(function () {
-            updateState($(this));
+        });
+
+        updateState(containerDom);
+
+        // Listen for 'auth/user/signedOut' which indicates the user is no
+        // longer available.
+        pub.sub('auth/user/signedOut', function () {
+            updateState(containerDom);
         });
     });
 });

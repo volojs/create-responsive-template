@@ -16,6 +16,7 @@ define(function (require) {
     var $ = require('jquery'),
         appCache = require('appCache'),
         network = require('network'),
+        pub = require('pub'),
         networkDom, appCacheStatusDom, appCacheEventDom, updateAlertDom,
         checkUpdateDom, eventSectionDom;
 
@@ -64,8 +65,6 @@ define(function (require) {
 
     // Wait for the DOM to be ready before showing the network state.
     $(function () {
-        var docDom = $(document);
-
         // Display the current network state.
         networkDom = $('#networkStatus');
         updateNetworkDisplay(network());
@@ -78,7 +77,7 @@ define(function (require) {
             updateNetworkDisplay(false);
         });
 
-        // Display current appCache state.
+        // Hold on to DOM elements used by appcache.
         appCacheStatusDom = $('#appCacheStatus');
         appCacheEventDom = $('#appCacheEvent');
         updateAlertDom = $('#updateAlert');
@@ -102,7 +101,7 @@ define(function (require) {
         });
 
         // Wire up pub/sub listeners
-        docDom.bind('auth/error', function (evt, error) {
+        pub.sub('auth/user/error', function (error) {
             $('#authErrorDetails').text(error.message);
             $('#authError').show();
         });

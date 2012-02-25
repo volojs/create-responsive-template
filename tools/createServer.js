@@ -47,6 +47,7 @@ define(function (require) {
         // that come from the GET/POST data, and onDone expects to receive
         // an HTTP status code and a JSON string response.
         apiHandlers = {
+
             // Handles auth requests by asking BrowserID to verify the
             // assertion in the auth request.
             'auth': function (data, onDone) {
@@ -86,6 +87,19 @@ define(function (require) {
                             } else {
                                 // Strip out the status since it is not needed
                                 delete body.status;
+
+                                // Add in a "server ID" that is used to tie
+                                // the API calls from the client back to
+                                // a server state.
+                                body.serverInfo = {
+                                    // Just a made up value for illustration
+                                    // Purposes. Change this for a real server.
+                                    id: "SERVERID",
+                                    expires: (new Date()).getTime() +
+                                                // 14 days
+                                                (14 * 24 * 60 * 60 * 1000)
+
+                                };
                                 onDone(200, JSON.stringify(body));
                             }
                         }
@@ -95,6 +109,35 @@ define(function (require) {
                               'application/x-www-form-urlencoded; charset=UTF-8');
                 req.setHeader('Content-Length', requestBody.length);
                 req.end(requestBody);
+            },
+
+            // Client sends this on load, to confirm the auth info is still
+            // valid. This is just a simple placeholder. A real confirm would
+            // probably be more involved, and possibly send back the current
+            // server state for the user.
+            'auth/confirm': function (data, onDone) {
+                var serverInfo = JSON.parse(data.serverInfo);
+
+                if (serverInfo.expires < (new Date()).getTime()) {
+                    onDone(200, JSON.stringify({
+                        status: 'expired'
+                    }));
+                } else {
+                    onDone(200, JSON.stringify({
+                        status: 'ok'
+                    }));
+                }
+            },
+
+            // When user clicks sign out in the browser, this API is called.
+            // Just a stub, since this server does not store anything for the
+            // user, just demonstrates that BrowserID assertion work.
+            'auth/signout': function (data, onDone) {
+                var serverInfo = JSON.parse(data.serverInfo);
+
+                onDone(200, JSON.stringify({
+                    status: 'ok'
+                }));
             }
         };
 
@@ -139,7 +182,7 @@ define(function (require) {
             }
         }
 
-        function handle(req, res) {
+        function handleRequest(req, res) {
             var urlPath, stream, ext, stat, mimeType;
 
             if (req.url.indexOf('/api') === 0) {
@@ -197,7 +240,7 @@ define(function (require) {
             }
         }
 
-        server = http.createServer(handle);
+        server = http.createServer(handleRequest);
         server.listen(port, host);
 
         console.log('Using ' + docRoot + ' for: http://' + host + ':' + port);
