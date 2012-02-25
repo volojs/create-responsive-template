@@ -121,9 +121,8 @@ define(function (require) {
                         //The all-in-one option.
                         return v.spawn('node', ['tools/r.js', '-o',
                                         'baseUrl=www/js',
-                                        'paths.almond=../../tools/almond',
-                                        'name=almond',
-                                        'include=app',
+                                        'paths.requireLib=require',
+                                        'include=requireLib,app',
                                         'out=www-built/js/app.js',
                                         'optimize=' + optimize], {
                             useConsole: !namedArgs.quiet
