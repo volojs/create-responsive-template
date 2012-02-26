@@ -272,11 +272,18 @@ define(function (require) {
             .fail(d.reject);
         },
 
-        serve: function (d, v, namedArgs, docRoot) {
-            namedArgs.docRoot = docRoot || namedArgs.docRoot || 'www';
+        serve: function (d, v, namedArgs) {
+            // Default to use the 'www' directory.
+            namedArgs.docRoot = namedArgs.docRoot || 'www';
 
-            require(['./tools/createServer.js'], function (createServer) {
-                createServer(namedArgs);
+            // Build up spawn args from namedArgs.
+            var args = ['tools/server.js'];
+            Object.keys(namedArgs).forEach(function (key) {
+                args.push(key + '=' + namedArgs[key]);
+            });
+
+            v.spawn('node', args, {
+                useConsole: !namedArgs.quiet
             });
         }
     };
