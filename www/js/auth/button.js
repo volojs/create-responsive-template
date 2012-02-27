@@ -16,21 +16,23 @@ define(function (require) {
         var userData = user.get(),
             msgDom = dom.find('.auth-msg'),
             caretDom = dom.find('.caret'),
+            menuDom = dom.find('.auth-menu'),
             text, state;
 
         if (stateDataId) {
             text = dom.data(stateDataId);
             state = stateDataId;
-            caretDom.hide();
         } else if (userData) {
             text = userData.email;
             state = 'signedIn';
             caretDom.show();
+            menuDom.css('display', '');
         } else {
             // Signed out.
             text = dom.data('auth-signin');
             state = 'signedOut';
             caretDom.hide();
+            menuDom.css('display', 'none');
         }
 
         msgDom.text(text);
