@@ -9,6 +9,11 @@ This project template sets up a repsonsive webapp that uses
 [AppCache](https://developer.mozilla.org/en/Using_Application_Cache) and
 [network events](https://developer.mozilla.org/en/DOM/window.navigator.onLine).
 
+It also includes and optional
+[BrowserID integration](https://github.com/mozilla/browserid/wiki/How-to-Use-BrowserID-on-Your-Site),
+to get you bootstrapped easily into an open, email-focused identity
+system that allows psuedonyms.
+
 This makes it easy to set up web apps that are mobile-ready and can
 be used as [Mozilla Web Apps](https://developer.mozilla.org/en-US/apps)
 or [Chrome Store Apps](https://chrome.google.com/webstore/category/home).
@@ -36,11 +41,15 @@ Then:
 
     > volo create myproject volojs/create-responsive-template
     > cd myproject
-    > ../volo appcache
+    > ../volo serve
 
 Now you will have a responsive project template set up in the `myproject`
 directory. You can do development using the `myproject/www` directory in your
 browser, then use the built, AppCache-enabled project in `myproject/www-built`.
+
+The `serve` command starts up a dev server that serves the files in
+`myproject/www`, and implements API endpoints for some of the user auth work
+that uses BrowserID.
 
 ## What Happened
 
@@ -54,9 +63,13 @@ converted the Bootstrap JS code to work as AMD modules.
 
 The project uses [RequireJS](http://requirejs.org) so that you can create
 modular code that is easy to debug. When `volo appcache` is run, it builds all
-the JS into one file and removes the use of RequireJS. Additionally, it
-optimizes the CSS files by combining them into one file. Then it generates the
-AppCache application manifest.
+the JS into one file. Additionally, it optimizes the CSS files by combining
+them into one file. Then it generates the AppCache application manifest.
+
+The AppCache build will load the BrowserID include.js from the network.
+If the user is offline, the BrowserID script does not load, but the
+user can continue to use the app under their ID, if they signed in before
+going offline.
 
 ## Suggested Workflow
 
@@ -67,6 +80,19 @@ Backbone, run these commands in the `myproject` directory:
 
     volo add amdjs/underscore
     volo add amdjs/backbone
+
+Once you want to test the AppCache-enabled version of the app:
+
+    volo appcache
+    volo serve www-built
+
+The `volo appcache` command will do the build optimizations and generate the
+appcache manifest, using the SHA1 digest of all the built files as the overall
+ID of that version of the app. It also modifies index.html to reference the
+manifest.appcache file.
+
+The `volo serve www-built` command will run the dev web server using
+`www-built` as the document root, the directory containing the built project.
 
 ## Project Layout
 
@@ -80,8 +106,10 @@ This web project has the following setup:
         * app/ - create this directory to store your app-specific scripts. Any
         third party scripts should go in the js/ directory, as siblings to
         app.js.
-* tools/ - the build tools to optimize the project. Also contains the LESS
-files used by Twitter Bootstrap to create its CSS.
+* tools/ - the build tools to optimize the project, and the dev web server you
+can use that also implements an example of the APIs that can be used with
+BrowserID. Also contains the LESS files used by Twitter Bootstrap to create
+its CSS.
 
 By default, the package comes with the .css files already generated from
 Bootstrap's .less files. If you edit the tools/less files again, you can
@@ -89,22 +117,26 @@ regenerate the CSS files by running the following command from this directory:
 
     > volo less
 
-To optimize the project for deployment, run:
+To optimize the project for deployment without generating an appcache manifest,
+and without modifying index.html to reference the manifest, run:
 
     > volo build
 
-This will create an optimized version of the project in a **www-built**
-directory. The js/app.js file will be optimized to include all of its
-dependencies.
+## Server API endpoints
 
-If you want an AppCache manifest created and the index.html modified to
-reference the manifest, run:
+The dev server, run via `volo serve`, implements some endpoints for the auth
+flow used by the project. These endpoints do not need to be implemented in
+a Node-based server. You can implement them in your server system of choice.
+The API calls are:
 
-    > volo appcache
+* **/auth**: Handles the BrowserID assertion.
+* **/auth/confirm**: Handles confirming that the user's stored info is still
+  valid.
+* **/auth/signout**: Called by the client code when the user indicates the
+desire to sign out of the app.
 
-This will run the build command, then generate the manifest from the files in
-`www-built`, create `www-built/manifest.appcache` and modify
-`www-built/index.html` to reference the manifest.
+If you prefer to use different APIs, just modify `www/js/auth/user.js` to use
+the APIs you want.
 
 ## Links
 
@@ -112,6 +144,7 @@ This will run the build command, then generate the manifest from the files in
 * [Twitter Bootstrap](http://twitter.github.com/bootstrap/)
 * [AppCache](https://developer.mozilla.org/en/Using_Application_Cache)
 * [Online detection](https://developer.mozilla.org/en/DOM/window.navigator.onLine)
+* [BrowserID](https://browserid.org)
 * [RequireJS API](http://requirejs.org/docs/api.html)
 * [RequireJS optimizer](http://requirejs.org/docs/optimization.html)
 * [volo](https://github.com/volojs/volo)
