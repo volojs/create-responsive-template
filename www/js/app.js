@@ -1,11 +1,12 @@
 // Main app file.
 
-// To load a submodule for the app, place it in an app/ directory that is a
-// sibling to this file.
+// To load an app-specific module, place it in an app/ directory that is a
+// sibling to this file. See app/uiNetworks.js and app/uiAppCache.js for
+// examples.
 
-// For any third party dependencies, like jQuery,
-// place them in the same directory as this file.
-// This avoids having to do module path configuration.
+// For any third party dependencies, like jQuery, place them in the same
+// directory as this file. This avoids having to do module path configuration,
+// and keeps the third party libraries out of your app/ directory.
 
 /*global window */
 
@@ -16,17 +17,15 @@ define(function (require) {
         pub = require('pub');
 
     // Dependencies that do not have an export of their own, just attach
-    // to other objects, like jQuery.
+    // to other objects, like jQuery. These are just used in the example
+    // bootstrap modal, not directly in the UI for the network and appCache
+    // displays.
     require('bootstrap/alert');
     require('bootstrap/modal');
     require('bootstrap/transition');
 
-    // Load up the app's UI controllers. This example does not need to
-    // hold on to any exported value for these controllers.
-    require('auth/button');
-    require('app/ui/network');
-    require('app/ui/appCache');
-
+    // Wait for the DOM to be ready before showing the network and appCache
+    // state.
     $(function () {
         // Wire up pub/sub listeners for events that should be displayed
         // globally.
@@ -34,5 +33,10 @@ define(function (require) {
             $('#authErrorDetails').text(error.message);
             $('#authError').show();
         });
+
+        // Bind to the UI
+        require('auth/button');
+        require('app/uiNetwork')();
+        require('app/uiAppCache')();
     });
 });
