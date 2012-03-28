@@ -22,7 +22,7 @@ define(function (require) {
                 //Grab the twitter bootstrap and jQuery
                 v.command('create', tempName, 'twitter/bootstrap')
                 .then(function () {
-                    return v.command('add', 'jquery/jquery/1.7.1');
+                    return v.command('add', 'jquery/jquery/1.7.2');
                 })
                 .then(function (result) {
                     //Move the JS to the right location.
