@@ -8,7 +8,31 @@ define(function (require) {
         q = require('q'),
         crypto = require('crypto'),
         fs = require('fs'),
-        path = require('path');
+        path = require('path'),
+        forGitHubPages = false,
+        skipFlattenForGitHubPages = false;
+
+    //Cleans up the
+    function flattenForGitHubPages(v) {
+        if (!forGitHubPages || skipFlattenForGitHubPages) {
+            return;
+        }
+
+        //Move the contents of www-built to the top level
+        fs.readdirSync('www-built').forEach(function (item) {
+            var target = path.join('.', item);
+
+            if (v.exists(target)) {
+                v.rm(target);
+            }
+
+            v.mv(path.join('www-built', item), target);
+        });
+
+        //Remove the www-built directory, since it should not be committed
+        //into the github branch.
+        v.rm('www-built');
+    }
 
     return {
         //Run as the result of first setting up this project via a
@@ -58,6 +82,24 @@ define(function (require) {
                         //Compile the CSS.
                         v.command('less').then(function () {
                             v.rm(tempName);
+                        })
+                        .then(function () {
+                            //Ask if this is a project for GitHub
+                            return v.prompt('Will this be an app hosted on ' +
+                                            'GitHub Pages [n]? ');
+                        })
+                        .then(function (value) {
+                            if (value && value.charAt(0).toLowerCase() === 'y') {
+                                //Modify this file and change the GitHub
+                                //Pages to true.
+                                v.write('volofile', v.read('volofile')
+                                        .replace(/forGitHubPages = false/,
+                                                 'forGitHubPages = true'));
+
+                                //Create a file that indicates GitHub's jekyll
+                                //is not needed.
+                                v.write('.nojekyll', '');
+                            }
                         })
                         .then(d.resolve, d.reject);
 
@@ -156,6 +198,10 @@ define(function (require) {
                     return buildOutput;
                 })
                 .then(function (buildOutput) {
+                    flattenForGitHubPages(v);
+                    return buildOutput;
+                })
+                .then(function (buildOutput) {
                     d.resolve(buildOutput);
                 }, d.reject);
             }
@@ -237,11 +283,17 @@ define(function (require) {
         appcache: function (d, v, namedArgs) {
             var hasBuilt = v.exists('www-built');
 
+            //Delay the flattening until later.
+            skipFlattenForGitHubPages = true;
+
             v.command('build')
             .then(function () {
                 var manifest = v.read('./tools/manifest.appcache'),
                     master = v.read('./www-built/index.html'),
                     appFiles;
+
+                //Reset skipFlatten flag
+                skipFlattenForGitHubPages = false;
 
                 appFiles = v.getFilteredFileList('www-built');
                 appFiles = appFiles.map(function (file) {
@@ -263,6 +315,9 @@ define(function (require) {
                     });
                     v.write('www-built/manifest.appcache', manifest);
                 });
+            })
+            .then(function () {
+                flattenForGitHubPages(v);
             })
             .then(function () {
                 //Inform the user of the right mime type, but only do it if
