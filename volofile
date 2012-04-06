@@ -50,7 +50,7 @@ define(function (require) {
                 })
                 .then(function (result) {
                     //Move the JS to the right location.
-                    var jsFiles = v.getFilteredFileList(tempName + '/js', /\.js$/, /test/),
+                    var jsFiles = v.getFilteredFileList(tempName + '/js', /\.js$/, /js\/tests\//),
                         promises = [];
 
                     jsFiles.forEach(function (file) {
