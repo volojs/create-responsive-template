@@ -35,12 +35,25 @@ the same basic idea though, fetch the volo file and start using it.
 Then:
 
     > volo create myproject volojs/create-responsive-template
+    Will this be an app hosted on GitHub Pages [n]? (answer y or n)
     > cd myproject
     > ../volo appcache
 
 Now you will have a responsive project template set up in the `myproject`
-directory. You can do development using the `myproject/www` directory in your
-browser, then use the built, AppCache-enabled project in `myproject/www-built`.
+directory.
+
+You can do development using the `myproject/www` directory in your
+browser.
+
+If you answered "y" to the GitHub Pages question, then the built,
+AppCache-enabled project will be in `myproject/www-built`.
+
+If you answered "y" to the GitHub Pages question, then the built project
+will be in the top level of `myproject`. The entry point to the built,
+AppCache-enabled app will be `myproject/index.html`. The project can be
+committed into the `gh-pages` branch of a GitHub repo. See the
+[GitHub Pages Help](http://help.github.com/pages/) for more information on
+how to use GitHub pages to serve a web app.
 
 ## What Happened
 
@@ -94,7 +107,10 @@ To optimize the project for deployment, run:
     > volo build
 
 This will create an optimized version of the project in a **www-built**
-directory. The js/app.js file will be optimized to include all of its
+directory, if it is a non-GitHub Pages project. For GitHub Pages projects, the
+built code will be in the root of the project directory.
+
+The js/app.js file will be optimized to include all of its
 dependencies.
 
 If you want an AppCache manifest created and the index.html modified to
@@ -102,9 +118,8 @@ reference the manifest, run:
 
     > volo appcache
 
-This will run the build command, then generate the manifest from the files in
-`www-built`, create `www-built/manifest.appcache` and modify
-`www-built/index.html` to reference the manifest.
+This will run the build command, then generate a `manifest.appcache` manifest
+for the built files and modify the built `index.html` to reference it.
 
 ## Links
 
