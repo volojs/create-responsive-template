@@ -28,5 +28,6 @@ define(function (require) {
         // Enable the UI bindings for the network and appCache displays
         require('app/uiNetwork')();
         require('app/uiAppCache')();
+        require('app/uiWebAppInstall')();
     });
 });
