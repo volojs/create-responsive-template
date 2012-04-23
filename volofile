@@ -56,7 +56,7 @@ define(function (require) {
                     jsFiles.forEach(function (file) {
                         //Pull off the name part from bootstrap-name.js pattern.
                         var name = jsNameRegExp.exec(file)[1],
-                            destName = 'www/js/bootstrap/' + name + '.js',
+                            destName = 'www/js/lib/bootstrap/' + name + '.js',
                             damd = q.defer();
 
                         v.copyFile(file, destName);
@@ -153,7 +153,8 @@ define(function (require) {
                         //Still use require.js to load the app.js file.
                         return v.spawn('node', ['tools/r.js', '-o',
                                         'appDir=www',
-                                        'baseUrl=js',
+                                        'baseUrl=js/lib',
+                                        'paths.app=../app',
                                         'name=app',
                                         'dir=www-built',
                                         'optimize=' + optimize], {
@@ -162,8 +163,9 @@ define(function (require) {
                     } else {
                         //The all-in-one option.
                         return v.spawn('node', ['tools/r.js', '-o',
-                                        'baseUrl=www/js',
-                                        'paths.almond=../../tools/almond',
+                                        'baseUrl=www/js/lib',
+                                        'paths.app=../app',
+                                        'paths.almond=../../../tools/almond',
                                         'name=almond',
                                         'include=app',
                                         'out=www-built/js/app.js',
