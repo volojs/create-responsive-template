@@ -93,6 +93,9 @@ This web project has the following setup:
         * app/ - create this directory to store your app-specific scripts. Any
         third party scripts should go in the js/ directory, as siblings to
         app.js.
+        * lib/ - where to store 3rd party JavaScript libraries. By default,
+        `volo add` when run from the project base will install those scripts
+        into this directory.
 * tools/ - the build tools to optimize the project. Also contains the LESS
 files used by Twitter Bootstrap to create its CSS.
 
