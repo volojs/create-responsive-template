@@ -45,7 +45,7 @@ directory.
 You can do development using the `myproject/www` directory in your
 browser.
 
-If you answered "y" to the GitHub Pages question, then the built,
+If you answered "n" to the GitHub Pages question, then the built,
 AppCache-enabled project will be in `myproject/www-built`.
 
 If you answered "y" to the GitHub Pages question, then the built project
