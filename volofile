@@ -55,9 +55,16 @@ define(function (require) {
 
                     jsFiles.forEach(function (file) {
                         //Pull off the name part from bootstrap-name.js pattern.
-                        var name = jsNameRegExp.exec(file)[1],
-                            destName = 'www/js/lib/bootstrap/' + name + '.js',
-                            damd = q.defer();
+                        var match = jsNameRegExp.exec(file),
+                            name, destName, damd;
+
+                        if (!match) {
+                            return;
+                        }
+
+                        name = jsNameRegExp.exec(file)[1];
+                        destName = 'www/js/lib/bootstrap/' + name + '.js';
+                        damd = q.defer();
 
                         v.copyFile(file, destName);
 
