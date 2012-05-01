@@ -9,30 +9,9 @@ define(function (require) {
         crypto = require('crypto'),
         fs = require('fs'),
         path = require('path'),
-        forGitHubPages = false,
-        skipFlattenForGitHubPages = false;
-
-    //Cleans up the
-    function flattenForGitHubPages(v) {
-        if (!forGitHubPages || skipFlattenForGitHubPages) {
-            return;
-        }
-
-        //Move the contents of www-built to the top level
-        fs.readdirSync('www-built').forEach(function (item) {
-            var target = path.join('.', item);
-
-            if (v.exists(target)) {
-                v.rm(target);
-            }
-
-            v.mv(path.join('www-built', item), target);
-        });
-
-        //Remove the www-built directory, since it should not be committed
-        //into the github branch.
-        v.rm('www-built');
-    }
+        github = require('volo/github'),
+        githubAuth = require('volo/github/auth'),
+        forGitHubPages = false;
 
     return {
         //Run as the result of first setting up this project via a
@@ -41,10 +20,116 @@ define(function (require) {
         onCreate: {
             run: function (d, v, namedArgs) {
                 var tempName = 'tempbootstrap',
-                    jsNameRegExp = /bootstrap-(\w*)\.js$/;
+                    jsNameRegExp = /bootstrap-(\w*)\.js$/,
+                    domain, sshUrl;
 
-                //Grab the twitter bootstrap and jQuery
-                v.command('create', tempName, 'twitter/bootstrap')
+                //Set up GitHub bindings if necessary.
+                //Ask if this is a project for GitHub
+                v.prompt('Will this be an app hosted on ' +
+                         'GitHub Pages [n]?')
+                .then(function (value) {
+                    if (value && value.charAt(0).toLowerCase() === 'y') {
+                        //Create the www-built and git init it.
+                        console.log('For information on GitHub hosting, see ' +
+                                    'the readme: https://github.com/volojs/create-responsive-template');
+
+                        var ghDfd = q.defer();
+                        ghDfd.promise.fail(function (msg) {
+                            return msg + '\nProceeding without GitHub Pages ' +
+                                   'integration';
+                        });
+
+                        v.prompt('Domain name you will use for the ' +
+                                        'app (example: something.domainyouown.com):')
+                        .then(function(answer) {
+                            if (!answer) {
+                                return new Error('No domain entered.');
+                            }
+                            return answer;
+                        })
+                        .then(function (promptedDomain) {
+                            domain = promptedDomain;
+                            return githubAuth.fetch({ v: v });
+                        })
+                        .then(function (authInfo) {
+                            if (!authInfo) {
+                                return new Error('No authorization to access GitHub.');
+                            }
+                        })
+                        .then(function (authInfo) {
+                            return github('user/repos', {
+                                method: 'POST',
+                                content: {
+                                    access_token: authInfo.token,
+                                    name: domain
+                                }
+                            });
+                        })
+                        .then(function (createResponse) {
+                            sshUrl = createResponse.ssh_url;
+
+                            //Set up the git repo locally. Just commit a file
+                            //to get the repo prepped and sent to GitHub.
+                            return v.spawnSequence([
+                                ['git', ['init']],
+                                ['git', ['remote', 'add', sshUrl]],
+                                ['git', ['add', '.gitignore']],
+                                ['git', ['commit', '-m', 'initial commit']],
+                                ['git', ['push', 'origin', 'master']]
+                            ], {
+                                useConsole: !namedArgs.quiet
+                            });
+                        })
+                        .then(function () {
+                            //Now prep the github pages branch in www-built
+                            v.mkdir('www-built');
+                            var currDir = process.cwd();
+
+                            function restoreDir() {
+                                process.chdir(currDir);
+                            }
+
+                            process.chdir('www-built');
+
+                            v.spawnSequence([
+                                ['git', ['init']],
+                                ['git', ['remote', 'add', sshUrl]],
+                                ['git', ['pull', 'origin', 'master']],
+                                ['git', ['checkout', 'b', 'gh-pages']]
+                            ], {
+                                useConsole: !namedArgs.quiet
+                            }).then(function (value) {
+                                restoreDir();
+                                return value;
+                            }, function (err) {
+                                restoreDir();
+                                return err;
+                            });
+                        })
+                        .then(function () {
+                            //Modify this file and change the GitHub
+                            //Pages to true.
+                            v.write('volofile', v.read('volofile')
+                                    .replace(/forGitHubPages = false/,
+                                             'forGitHubPages = true'));
+
+                            //Create a file that indicates GitHub's jekyll
+                            //is not needed.
+                            v.write('.nojekyll', '');
+
+                            //Set forGitHubPages true for the rest of
+                            //this program execution.
+                            forGitHubPages = true;
+                        })
+                        .fail(d.reject);
+
+                        return ghDfd.promise;
+                    }
+                })
+                .then(function () {
+                    //Grab the twitter bootstrap and jQuery
+                    return v.command('create', tempName, 'twitter/bootstrap');
+                })
                 .then(function () {
                     return v.command('add', 'jquery/jquery/1.7.2');
                 })
@@ -90,24 +175,6 @@ define(function (require) {
                         v.command('less').then(function () {
                             v.rm(tempName);
                         })
-                        .then(function () {
-                            //Ask if this is a project for GitHub
-                            return v.prompt('Will this be an app hosted on ' +
-                                            'GitHub Pages [n]? ');
-                        })
-                        .then(function (value) {
-                            if (value && value.charAt(0).toLowerCase() === 'y') {
-                                //Modify this file and change the GitHub
-                                //Pages to true.
-                                v.write('volofile', v.read('volofile')
-                                        .replace(/forGitHubPages = false/,
-                                                 'forGitHubPages = true'));
-
-                                //Create a file that indicates GitHub's jekyll
-                                //is not needed.
-                                v.write('.nojekyll', '');
-                            }
-                        })
                         .then(d.resolve, d.reject);
 
                     }).fail(d.reject);
@@ -130,9 +197,14 @@ define(function (require) {
 
             run: function (d, v, namedArgs) {
                 q.call(function () {
-                    //Remove the old build.
+                    //Remove the old build, but do not remove the directory,
+                    //keep it in case there is a .git file in there.
                     if (v.exists('www-built')) {
-                        v.rm('www-built');
+                        fs.readdirSync('www-built').forEach(function (name) {
+                            if (name !== '.git') {
+                                v.rm('www-built/' + name);
+                            }
+                        });
                     }
 
                     if (!namedArgs.dynamic) {
@@ -204,10 +276,6 @@ define(function (require) {
 
                         v.write(indexName, contents);
                     }
-                    return buildOutput;
-                })
-                .then(function (buildOutput) {
-                    flattenForGitHubPages(v);
                     return buildOutput;
                 })
                 .then(function (buildOutput) {
@@ -292,17 +360,11 @@ define(function (require) {
         appcache: function (d, v, namedArgs) {
             var hasBuilt = v.exists('www-built');
 
-            //Delay the flattening until later.
-            skipFlattenForGitHubPages = true;
-
             v.command('build')
             .then(function () {
                 var manifest = v.read('./tools/manifest.appcache'),
                     master = v.read('./www-built/index.html'),
                     appFiles;
-
-                //Reset skipFlatten flag
-                skipFlattenForGitHubPages = false;
 
                 appFiles = v.getFilteredFileList('www-built');
                 appFiles = appFiles.map(function (file) {
@@ -324,9 +386,6 @@ define(function (require) {
                     });
                     v.write('www-built/manifest.appcache', manifest);
                 });
-            })
-            .then(function () {
-                flattenForGitHubPages(v);
             })
             .then(function () {
                 //Inform the user of the right mime type, but only do it if
