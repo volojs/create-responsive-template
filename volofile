@@ -11,6 +11,7 @@ define(function (require) {
         path = require('path'),
         github = require('volo/github'),
         githubAuth = require('volo/github/auth'),
+        hasSubDomainRegExp = /.+\..+\..+/,
         forGitHubPages = false;
 
     return {
@@ -18,10 +19,16 @@ define(function (require) {
         //"volo create" call. Gets the twitter bootstrap code, and
         //jQuery.
         onCreate: {
-            run: function (d, v, namedArgs) {
+            run: function (d, v, namedArgs, appName) {
                 var tempName = 'tempbootstrap',
                     jsNameRegExp = /bootstrap-(\w*)\.js$/,
-                    domain, sshUrl;
+                    domain, sshUrl, authInfo;
+
+                function log(msg) {
+                    if (!namedArgs.quiet) {
+                        console.log(msg);
+                    }
+                }
 
                 v.command('add', 'jquery/jquery/1.7.2')
                 .then(function () {
@@ -80,7 +87,7 @@ define(function (require) {
                 .then(function (value) {
                     if (value && value.charAt(0).toLowerCase() === 'y') {
                         //Create the www-built and git init it.
-                        console.log('For information on GitHub hosting, see ' +
+                        log('For information on GitHub hosting, see ' +
                                     'the readme: https://github.com/volojs/create-responsive-template');
 
                         var ghDfd = q.defer();
@@ -89,8 +96,18 @@ define(function (require) {
                                    'integration';
                         });
 
-                        v.prompt('Domain name you will use for the ' +
-                                        'app (example: something.domainyouown.com):')
+                        q.call(function () {
+                            //If appName is already a domain (has at least
+                            //two dots), then just use that as the domain.
+                            if (hasSubDomainRegExp.test(appName)) {
+                                //appName could be a file path, take the last
+                                //bit of it.
+                                return path.basename(appName);
+                            }
+
+                            return v.prompt('Domain name you will use for the ' +
+                                        'app (example: something.domainyouown.com):');
+                        })
                         .then(function(answer) {
                             if (!answer) {
                                 return new Error('No domain entered.');
@@ -101,30 +118,41 @@ define(function (require) {
                             domain = promptedDomain;
                             return githubAuth.fetch({ v: v });
                         })
-                        .then(function (authInfo) {
-                            if (!authInfo) {
+                        .then(function (info) {
+                            if (!info) {
                                 return new Error('No authorization to access GitHub.');
                             }
+                            authInfo = info;
                         })
-                        .then(function (authInfo) {
+                        .then(function () {
+                            //Set up the git repo locally. Just commit a file
+                            //to get the repo prepped and sent to GitHub.
+                            return v.spawnSequence([
+                                ['git', ['init']],
+                                ['git', ['add', '.gitignore']],
+                                ['git', ['commit', '-m', 'Initial commit.']]
+                            ], {
+                                useConsole: !namedArgs.quiet
+                            });
+                        })
+                        .then(function () {
                             return github('user/repos', {
                                 method: 'POST',
+                                token: authInfo.token,
                                 content: {
-                                    access_token: authInfo.token,
                                     name: domain
                                 }
                             });
                         })
                         .then(function (createResponse) {
+                            log('Created repo: https://github.com/' +
+                                authInfo.user + '/' + domain);
+
                             sshUrl = createResponse.ssh_url;
 
-                            //Set up the git repo locally. Just commit a file
-                            //to get the repo prepped and sent to GitHub.
+                            //Set up remote and push
                             return v.spawnSequence([
-                                ['git', ['init']],
-                                ['git', ['remote', 'add', sshUrl]],
-                                ['git', ['add', '.gitignore']],
-                                ['git', ['commit', '-m', 'Initial commit.']],
+                                ['git', ['remote', 'add', 'origin', sshUrl]],
                                 ['git', ['push', 'origin', 'master']]
                             ], {
                                 useConsole: !namedArgs.quiet
@@ -137,12 +165,22 @@ define(function (require) {
                             return v.withDir('www-built', function () {
                                 return v.spawnSequence([
                                     ['git', ['init']],
-                                    ['git', ['remote', 'add', sshUrl]],
+                                    ['git', ['remote', 'add', 'origin', sshUrl]],
                                     ['git', ['pull', 'origin', 'master']],
                                     ['git', ['checkout', '-b', 'gh-pages']]
                                 ], {
                                     useConsole: !namedArgs.quiet
                                 });
+                            });
+                        })
+                        .then(function () {
+                            //Commit/push the rest of the source repo
+                            return v.spawnSequence([
+                                ['git', ['add', '.']],
+                                ['git', ['commit', '-m', 'Commit source files.']],
+                                ['git', ['push', 'origin', 'master']]
+                            ], {
+                                useConsole: !namedArgs.quiet
                             });
                         })
                         .then(function () {
@@ -152,9 +190,15 @@ define(function (require) {
                                     .replace(/forGitHubPages = false/,
                                              'forGitHubPages = true'));
 
+                            //Create the CNAME file used by github for hosting
+                            //Do this in the www directory because for the
+                            //built output for the gh-pages branch, it will
+                            //end up in the root of that branch.
+                            v.write('www/CNAME', domain);
+
                             //Create a file that indicates GitHub's jekyll
                             //is not needed.
-                            v.write('.nojekyll', '');
+                            v.write('www/.nojekyll', '');
 
                             //Set forGitHubPages true for the rest of
                             //this program execution.
@@ -170,16 +214,16 @@ define(function (require) {
                             //branch in www-built
                             return v.withDir('www-built', function () {
                                 return v.spawnSequence([
-                                    ['git', ['init']],
+                                    ['git', ['rm', '.gitignore']],
                                     ['git', ['add', '.']],
-                                    ['git', ['commit', '-m', 'First appcache build']],
-                                    ['git', ['push', 'origin', 'master']]
+                                    ['git', ['commit', '-m', 'Initial build commit.']],
+                                    ['git', ['push', 'origin', 'gh-pages']]
                                 ], {
                                     useConsole: !namedArgs.quiet
                                 });
                             });
                         })
-                        .fail(d.reject);
+                        .then(ghDfd.resolve, ghDfd.reject);
 
                         return ghDfd.promise;
                     }
