@@ -11,7 +11,8 @@ define(function (require) {
         path = require('path'),
         github = require('volo/github'),
         githubAuth = require('volo/github/auth'),
-        buildDir = 'www-built';
+        buildDir = 'www-built',
+        pagesDir = 'www-ghpages';
 
     return {
         //Run as the result of first setting up this project via a
@@ -20,18 +21,7 @@ define(function (require) {
         onCreate: {
             run: function (d, v, namedArgs, appName) {
                 var tempName = 'tempbootstrap',
-                    jsNameRegExp = /bootstrap-(\w*)\.js$/,
-                    repoName = path.basename(appName),
-                    spawnOptions = {
-                        useConsole: !namedArgs.quiet
-                    },
-                    domain, sshUrl, authInfo;
-
-                function log(msg) {
-                    if (!namedArgs.quiet) {
-                        console.log(msg);
-                    }
-                }
+                    jsNameRegExp = /bootstrap-(\w*)\.js$/;
 
                 v.command('add', 'jquery/jquery/1.7.2')
                 .then(function () {
@@ -81,143 +71,6 @@ define(function (require) {
                         v.rm(tempName);
                     });
                 })
-                .then(function () {
-                    //Set up GitHub bindings if necessary.
-                    //Ask if this is a project for GitHub
-                    return v.prompt('Will this be an app hosted on ' +
-                         'GitHub Pages (only works if git is installed locally) [n]?');
-                })
-                .then(function (value) {
-                    if (value && value.charAt(0).toLowerCase() === 'y') {
-                        //Create the buildDir and git init it.
-                        log('For information on GitHub hosting, see ' +
-                                    'the readme: https://github.com/volojs/create-responsive-template');
-
-                        var ghDfd = q.defer();
-                        ghDfd.promise.fail(function (msg) {
-                            return msg + '\nProceeding without GitHub Pages ' +
-                                   'integration';
-                        });
-
-                        q.call(function () {
-                            return v.prompt('Domain name you will use for the ' +
-                                        'app. Example: something.domainyouown.com [leave blank to skip this part] :');
-                        })
-                        .then(function (promptedDomain) {
-                            domain = promptedDomain;
-                            return githubAuth.fetch({ v: v });
-                        })
-                        .then(function (info) {
-                            if (!info) {
-                                return new Error('No authorization to access GitHub.');
-                            }
-                            authInfo = info;
-                        })
-                        .then(function () {
-                            //Create the CNAME file used by github for hosting
-                            //Do this in the www directory because for the
-                            //built output for the gh-pages branch, it will
-                            //end up in the root of that branch.
-                            if (domain) {
-                                v.write('www/CNAME', domain);
-                            }
-
-                            //Create a file that indicates GitHub's jekyll
-                            //is not needed.
-                            v.write('www/.nojekyll', '');
-
-                            //Set buildDir to now be a sibling directory to
-                            //this repo
-                            buildDir = '../' + repoName + '-gh-pages';
-
-                            //Set up the buildDir directory
-                            v.mkdir(buildDir);
-
-                            //Modify this file and change the build dir to
-                            //the correct place.
-                            v.write('volofile', v.read('volofile')
-                                    .replace(/buildDir = 'www-built'/,
-                                             "buildDir = '" + buildDir + "'"));
-                        })
-                        .then(function () {
-                            //Create the repo on github
-                            return github('user/repos', {
-                                method: 'POST',
-                                token: authInfo.token,
-                                content: {
-                                    name: repoName
-                                }
-                            });
-                        })
-                        .then(function (createResponse) {
-                            log('Created repo: https://github.com/' +
-                                authInfo.user + '/' + repoName);
-
-                            sshUrl = createResponse.ssh_url;
-
-                            //Set up the gh-pages repo in the built area.
-                            return v.withDir(buildDir, function () {
-                                //Set up the git repo locally. Just commit a file
-                                //to get the repo prepped and sent to GitHub.
-                                return v.sequence([
-                                    ['git', 'init'],
-                                    //This step mandated by:
-                                    //http://help.github.com/pages/#project_pages_manually
-                                    ['git', 'symbolic-ref', 'HEAD', 'refs/heads/gh-pages'],
-                                    [v, 'rm', '.git/index'],
-                                    ['git', 'clean', '-fdx'],
-                                    [v, 'write', 'index.html', 'hello world'],
-                                    ['git', 'add', 'index.html'],
-                                    ['git', 'commit', '-m', 'Create branch.'],
-                                    ['git', 'remote', 'add', 'origin', sshUrl],
-                                    ['git', 'push', 'origin', 'gh-pages']
-                                ], spawnOptions);
-                            });
-                        })
-                        .then(function () {
-                            //Copy the git repo data to source area and prep
-                            //it to be the master.
-                            v.copyDir(buildDir + '/.git', './.git', /./, false, null, null);
-
-                            return v.sequence([
-                                //The root of the project will be use for
-                                //source files on the master branch.
-                                ['git', 'checkout', '-b', 'master'],
-
-                                //Clean up the primer file from the gh-pages branch.
-                                ['git', 'rm', 'index.html'],
-                                ['git', 'commit', '-m', 'Clean up initial branch creation.'],
-
-                                //Add/push all the new source code.
-                                ['git', 'add', '.'],
-                                ['git', 'commit', '-m', 'Commit source files.'],
-                                ['git', 'push', 'origin', 'master']
-                            ], spawnOptions);
-                        })
-                        .then(function () {
-                            //Run the build with appcache to have something
-                            //to commit into buildDir. Do this after setting
-                            //up the git repo since some of the commands above
-                            //are destructive.
-                            return v.command('appcache');
-                        })
-                        .then(function () {
-                            //Now add the build output to the gh-pages branch
-                            return v.withDir(buildDir, function () {
-                                //Set up the git repo locally. Just commit a file
-                                //to get the repo prepped and sent to GitHub.
-                                return v.sequence([
-                                    ['git', 'add', '.'],
-                                    ['git', 'commit', '-m', 'Initial build commit.'],
-                                    ['git', 'push', 'origin', 'gh-pages']
-                                ], spawnOptions);
-                            });
-                        })
-                        .then(ghDfd.resolve, ghDfd.reject);
-
-                        return ghDfd.promise;
-                    }
-                })
                 .then(d.resolve, d.reject);
             }
         },
@@ -236,15 +89,8 @@ define(function (require) {
 
             run: function (d, v, namedArgs) {
                 q.call(function () {
-                    //Remove the old build, but do not remove the directory,
-                    //keep it in case there is a .git file in there.
-                    if (v.exists(buildDir)) {
-                        fs.readdirSync(buildDir).forEach(function (name) {
-                            if (name !== '.git') {
-                                v.rm(buildDir + '/' + name);
-                            }
-                        });
-                    }
+                    //Remove the old dir
+                    v.rm(buildDir);
 
                     if (!namedArgs.dynamic) {
                         //Copy the directory for output.
@@ -381,6 +227,162 @@ define(function (require) {
                 }
 
                 digestFile(files[0]);
+            }
+        },
+
+        ghdeploy: {
+            run: function (d, v, namedArgs) {
+                var spawnOptions = {
+                    useConsole: !namedArgs.quiet
+                },
+                authInfo, repoName, hasGhPages;
+
+                q.call(function () {
+                    //First check if there is already a repo
+                    if (!v.exists(buildDir)) {
+                        throw new Error('Run build or appcache first to generate a deploy target in "www-built".');
+                    }
+
+                    //If already have gh-pages dir, go to next step.
+                    if (v.exists(pagesDir)) {
+                        return;
+                    }
+
+                    //Figure out if already in a github repo.
+                    return githubAuth.fetch({ v: v })
+                    .then(function (info) {
+                        authInfo = info;
+
+                        //Suggest the current directory name as the repo name.
+                        repoName = path.basename(process.cwd());
+
+                        return v.prompt(authInfo.user +
+                                        ', name of github repo [' +
+                                        repoName + ']:');
+                    })
+                    .then(function (promptRepoName) {
+                        var dfd = q.defer();
+
+                        if (promptRepoName) {
+                            repoName = promptRepoName;
+                        }
+
+                        //First check to see if it exists.
+                        github('repos/' + authInfo.user + '/' + repoName)
+                        .then(function (data) {
+                            var sshUrl = data.ssh_url;
+
+                            //Repo exists, see if there is a gh-pages repo
+                            //already
+                            github('repos/' + authInfo.user + '/' + repoName + '/branches')
+                            .then(function (data) {
+                                if (data && data.length) {
+                                    hasGhPages = data.some(function (branch) {
+                                        return branch.name === 'gh-pages';
+                                    });
+                                }
+                                dfd.resolve(sshUrl);
+                            }, dfd.reject);
+                        }, function (err) {
+                            if (err.response.statusCode === 404) {
+                                github('user/repos', {
+                                    method: 'POST',
+                                    token: authInfo.token,
+                                    content: {
+                                        name: repoName
+                                    }
+                                })
+                                .then(function (data) {
+                                    dfd.resolve(data.ssh_url);
+                                }, function (err) {
+                                   dfd.reject(err);
+                                });
+                            } else {
+                                dfd.reject(err);
+                            }
+                        });
+                        return dfd.promise;
+                    })
+                    .then(function (sshUrl) {
+                        //Set up .git.
+                        v.mkdir(pagesDir);
+
+                        //Set up the gh-pages repo in the built area.
+                        return v.withDir(pagesDir, function () {
+                            if (hasGhPages) {
+                                //Set up the git repo locally. Just commit a file
+                                //to get the repo prepped and sent to GitHub.
+                                return v.sequence([
+                                    ['git', 'init'],
+                                    ['git', 'remote', 'add', 'origin', sshUrl],
+                                    //This step mandated by:
+                                    //http://help.github.com/pages/#project_pages_manually
+                                    ['git', 'symbolic-ref', 'HEAD', 'refs/heads/gh-pages'],
+                                    [v,     'rm', '.git/index'],
+                                    ['git', 'clean', '-fdx'],
+
+                                    ['git', 'pull', 'origin', 'gh-pages']
+                                ], spawnOptions);
+                            } else {
+                                //Set up the git repo locally. Just commit a file
+                                //to get the repo prepped and sent to GitHub.
+                                return v.sequence([
+                                    ['git', 'init'],
+                                    ['git', 'remote', 'add', 'origin', sshUrl],
+                                    //This step mandated by:
+                                    //http://help.github.com/pages/#project_pages_manually
+                                    ['git', 'symbolic-ref', 'HEAD', 'refs/heads/gh-pages'],
+                                    [v,     'rm', '.git/index'],
+                                    ['git', 'clean', '-fdx'],
+
+                                    [v,     'write', 'index.html', 'Setting up pages...'],
+                                    ['git', 'add', 'index.html'],
+                                    ['git', 'commit', '-m', 'Create branch.'],
+                                    ['git', 'push', 'origin', 'gh-pages']
+                                ], spawnOptions);
+                            }
+                        });
+                    });
+                })
+                .then(function () {
+                    var message = namedArgs.m;
+                    if (!message) {
+                        message = 'Deploy';
+                    }
+
+                    //Clean up www-ghpages first, but keep .git
+                    if (v.exists(pagesDir)) {
+                        fs.readdirSync(pagesDir).forEach(function (name) {
+                            if (name !== '.git') {
+                                v.rm(pagesDir + '/' + name);
+                            }
+                        });
+                    }
+
+                    //Copy the contents of www-built to www-ghpages
+                    //Copy the directory for output.
+                    v.copyDir(buildDir, pagesDir);
+
+                    //Trigger update to origin.
+                    return v.withDir(pagesDir, function () {
+                        return v.sequence([
+                            //Add any new files
+                            ['git', 'add', '.'],
+                            //Remove any files from git that are not on on disk
+                            ['git', 'add', '-u'],
+                            ['git', 'commit', '-m', message],
+                            ['git', 'push', 'origin', 'gh-pages']
+                        ], spawnOptions);
+                    });
+                })
+                .then(function () {
+                    if (repoName) {
+                        return 'GitHub Pages is set up. Check http://' +
+                                authInfo.user + '.github.com/' + repoName +
+                                '/ in about 10-15 minutes.';
+                    }
+                })
+                .then(d.resolve, d.reject);
             }
         },
 
