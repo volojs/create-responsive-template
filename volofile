@@ -11,8 +11,7 @@ define(function (require) {
         path = require('path'),
         github = require('volo/github'),
         githubAuth = require('volo/github/auth'),
-        hasSubDomainRegExp = /.+\..+\..+/,
-        forGitHubPages = false;
+        buildDir = 'www-built';
 
     return {
         //Run as the result of first setting up this project via a
@@ -22,6 +21,10 @@ define(function (require) {
             run: function (d, v, namedArgs, appName) {
                 var tempName = 'tempbootstrap',
                     jsNameRegExp = /bootstrap-(\w*)\.js$/,
+                    repoName = path.basename(appName),
+                    spawnOptions = {
+                        useConsole: !namedArgs.quiet
+                    },
                     domain, sshUrl, authInfo;
 
                 function log(msg) {
@@ -82,11 +85,11 @@ define(function (require) {
                     //Set up GitHub bindings if necessary.
                     //Ask if this is a project for GitHub
                     return v.prompt('Will this be an app hosted on ' +
-                         'GitHub Pages [n]?');
+                         'GitHub Pages (only works if git is installed locally) [n]?');
                 })
                 .then(function (value) {
                     if (value && value.charAt(0).toLowerCase() === 'y') {
-                        //Create the www-built and git init it.
+                        //Create the buildDir and git init it.
                         log('For information on GitHub hosting, see ' +
                                     'the readme: https://github.com/volojs/create-responsive-template');
 
@@ -97,22 +100,8 @@ define(function (require) {
                         });
 
                         q.call(function () {
-                            //If appName is already a domain (has at least
-                            //two dots), then just use that as the domain.
-                            if (hasSubDomainRegExp.test(appName)) {
-                                //appName could be a file path, take the last
-                                //bit of it.
-                                return path.basename(appName);
-                            }
-
                             return v.prompt('Domain name you will use for the ' +
-                                        'app (example: something.domainyouown.com):');
-                        })
-                        .then(function(answer) {
-                            if (!answer) {
-                                return new Error('No domain entered.');
-                            }
-                            return answer;
+                                        'app. Example: something.domainyouown.com [leave blank to skip this part] :');
                         })
                         .then(function (promptedDomain) {
                             domain = promptedDomain;
@@ -125,102 +114,103 @@ define(function (require) {
                             authInfo = info;
                         })
                         .then(function () {
-                            //Set up the git repo locally. Just commit a file
-                            //to get the repo prepped and sent to GitHub.
-                            return v.spawnSequence([
-                                ['git', ['init']],
-                                ['git', ['add', '.gitignore']],
-                                ['git', ['commit', '-m', 'Initial commit.']]
-                            ], {
-                                useConsole: !namedArgs.quiet
-                            });
-                        })
-                        .then(function () {
-                            return github('user/repos', {
-                                method: 'POST',
-                                token: authInfo.token,
-                                content: {
-                                    name: domain
-                                }
-                            });
-                        })
-                        .then(function (createResponse) {
-                            log('Created repo: https://github.com/' +
-                                authInfo.user + '/' + domain);
-
-                            sshUrl = createResponse.ssh_url;
-
-                            //Set up remote and push
-                            return v.spawnSequence([
-                                ['git', ['remote', 'add', 'origin', sshUrl]],
-                                ['git', ['push', 'origin', 'master']]
-                            ], {
-                                useConsole: !namedArgs.quiet
-                            });
-                        })
-                        .then(function () {
-                            //Now prep the github pages branch in www-built
-                            v.mkdir('www-built');
-
-                            return v.withDir('www-built', function () {
-                                return v.spawnSequence([
-                                    ['git', ['init']],
-                                    ['git', ['remote', 'add', 'origin', sshUrl]],
-                                    ['git', ['pull', 'origin', 'master']],
-                                    ['git', ['checkout', '-b', 'gh-pages']]
-                                ], {
-                                    useConsole: !namedArgs.quiet
-                                });
-                            });
-                        })
-                        .then(function () {
-                            //Commit/push the rest of the source repo
-                            return v.spawnSequence([
-                                ['git', ['add', '.']],
-                                ['git', ['commit', '-m', 'Commit source files.']],
-                                ['git', ['push', 'origin', 'master']]
-                            ], {
-                                useConsole: !namedArgs.quiet
-                            });
-                        })
-                        .then(function () {
-                            //Modify this file and change the GitHub
-                            //Pages to true.
-                            v.write('volofile', v.read('volofile')
-                                    .replace(/forGitHubPages = false/,
-                                             'forGitHubPages = true'));
-
                             //Create the CNAME file used by github for hosting
                             //Do this in the www directory because for the
                             //built output for the gh-pages branch, it will
                             //end up in the root of that branch.
-                            v.write('www/CNAME', domain);
+                            if (domain) {
+                                v.write('www/CNAME', domain);
+                            }
 
                             //Create a file that indicates GitHub's jekyll
                             //is not needed.
                             v.write('www/.nojekyll', '');
 
-                            //Set forGitHubPages true for the rest of
-                            //this program execution.
-                            forGitHubPages = true;
+                            //Set buildDir to now be a sibling directory to
+                            //this repo
+                            buildDir = '../' + repoName + '-gh-pages';
+
+                            //Set up the buildDir directory
+                            v.mkdir(buildDir);
+
+                            //Modify this file and change the build dir to
+                            //the correct place.
+                            v.write('volofile', v.read('volofile')
+                                    .replace(/buildDir = 'www-built'/,
+                                             "buildDir = '" + buildDir + "'"));
+                        })
+                        .then(function () {
+                            //Create the repo on github
+                            return github('user/repos', {
+                                method: 'POST',
+                                token: authInfo.token,
+                                content: {
+                                    name: repoName
+                                }
+                            });
+                        })
+                        .then(function (createResponse) {
+                            log('Created repo: https://github.com/' +
+                                authInfo.user + '/' + repoName);
+
+                            sshUrl = createResponse.ssh_url;
+
+                            //Set up the gh-pages repo in the built area.
+                            return v.withDir(buildDir, function () {
+                                //Set up the git repo locally. Just commit a file
+                                //to get the repo prepped and sent to GitHub.
+                                return v.sequence([
+                                    ['git', 'init'],
+                                    //This step mandated by:
+                                    //http://help.github.com/pages/#project_pages_manually
+                                    ['git', 'symbolic-ref', 'HEAD', 'refs/heads/gh-pages'],
+                                    [v, 'rm', '.git/index'],
+                                    ['git', 'clean', '-fdx'],
+                                    [v, 'write', 'index.html', 'hello world'],
+                                    ['git', 'add', 'index.html'],
+                                    ['git', 'commit', '-m', 'Create branch.'],
+                                    ['git', 'remote', 'add', 'origin', sshUrl],
+                                    ['git', 'push', 'origin', 'gh-pages']
+                                ], spawnOptions);
+                            });
+                        })
+                        .then(function () {
+                            //Copy the git repo data to source area and prep
+                            //it to be the master.
+                            v.copyDir(buildDir + '/.git', './git', /./);
+
+                            return v.sequence([
+                                //The root of the project will be use for
+                                //source files on the master branch.
+                                ['git', 'checkout', '-b', 'master'],
+
+                                //Clean up the primer file from the gh-pages branch.
+                                ['git', 'rm', 'index.html'],
+                                ['git', 'commit', '-m', 'Clean up initial branch creation.'],
+
+                                //Add/push all the new source code.
+                                ['git', 'add', '.'],
+                                ['git', 'commit', '-m', 'Commit source files.'],
+                                ['git', 'push', 'origin', 'master']
+                            ], spawnOptions);
                         })
                         .then(function () {
                             //Run the build with appcache to have something
-                            //to commit into www-built
+                            //to commit into buildDir. Do this after setting
+                            //up the git repo since some of the commands above
+                            //are destructive.
                             return v.command('appcache');
                         })
                         .then(function () {
-                            //Commit the initial build output to the gh-pages
-                            //branch in www-built
-                            return v.withDir('www-built', function () {
-                                return v.spawnSequence([
-                                    ['git', ['rm', '.gitignore']],
-                                    ['git', ['add', '.']],
-                                    ['git', ['commit', '-m', 'Initial build commit.']],
-                                    ['git', ['push', 'origin', 'gh-pages']]
-                                ], {
-                                    useConsole: !namedArgs.quiet
-                                });
+                            //Now add the build output to the gh-pages branch
+                            return v.withDir(buildDir, function () {
+                                //Set up the git repo locally. Just commit a file
+                                //to get the repo prepped and sent to GitHub.
+                                return v.sequence([
+                                    ['git', 'add', '.'],
+                                    ['git', 'commit', '-m', 'Initial build commit.'],
+                                    ['git', 'push', 'origin', 'gh-pages']
+                                ], spawnOptions);
                             });
                         })
                         .then(ghDfd.resolve, ghDfd.reject);
@@ -248,26 +238,26 @@ define(function (require) {
                 q.call(function () {
                     //Remove the old build, but do not remove the directory,
                     //keep it in case there is a .git file in there.
-                    if (v.exists('www-built')) {
-                        fs.readdirSync('www-built').forEach(function (name) {
+                    if (v.exists(buildDir)) {
+                        fs.readdirSync(buildDir).forEach(function (name) {
                             if (name !== '.git') {
-                                v.rm('www-built/' + name);
+                                v.rm(buildDir + '/' + name);
                             }
                         });
                     }
 
                     if (!namedArgs.dynamic) {
                         //Copy the directory for output.
-                        v.copyDir('www', 'www-built');
+                        v.copyDir('www', buildDir);
 
                         //Remove the js dir from the built area, will be
                         //replaced by an optimized app.js
-                        v.rm('www-built/js');
+                        v.rm(buildDir + '/js');
 
                         //Do the CSS optimization
                         return v.spawn('node', ['tools/r.js', '-o',
                                                 'cssIn=www/css/app.css',
-                                                'out=www-built/css/app.css'], {
+                                                'out=' + buildDir + '/css/app.css'], {
                             useConsole: !namedArgs.quiet
                         });
                     }
@@ -284,7 +274,7 @@ define(function (require) {
                                         'baseUrl=js/lib',
                                         'paths.app=../app',
                                         'name=app',
-                                        'dir=www-built',
+                                        'dir=' + buildDir,
                                         'optimize=' + optimize], {
                             useConsole: !namedArgs.quiet
                         });
@@ -296,7 +286,7 @@ define(function (require) {
                                         'paths.almond=../../../tools/almond',
                                         'name=almond',
                                         'include=app',
-                                        'out=www-built/js/app.js',
+                                        'out=' + buildDir + '/js/app.js',
                                         'optimize=' + optimize], {
                             useConsole: !namedArgs.quiet
                         });
@@ -305,7 +295,7 @@ define(function (require) {
                 .then(function (buildOutput) {
                     //Remove all the CSS except for the app.css, since it
                     //inlines all the other ones.
-                    v.getFilteredFileList('www-built/css').forEach(function (path) {
+                    v.getFilteredFileList(buildDir + '/css').forEach(function (path) {
                         if (!/app\.css$/.test(path)) {
                             v.rm(path);
                         }
@@ -314,7 +304,7 @@ define(function (require) {
                     //If almond is in use, it is built into app.js, so need
                     //to update the script tag to just load app.js instead.
                     if (!namedArgs.dynamic) {
-                        var indexName = 'www-built/index.html',
+                        var indexName = buildDir + '/index.html',
                             contents = v.read(indexName),
                             scriptRegExp = /(<script[^>]+data-main="[^"]+"[^>]+)(src="[^"]+")([^>]+>\s*<\/script>)/;
 
@@ -407,17 +397,17 @@ define(function (require) {
         },
 
         appcache: function (d, v, namedArgs) {
-            var hasBuilt = v.exists('www-built');
+            var hasBuilt = v.exists(buildDir);
 
             v.command('build')
             .then(function () {
-                var manifest = v.read('./tools/manifest.appcache'),
-                    master = v.read('./www-built/index.html'),
+                var manifest = v.read('tools/manifest.appcache'),
+                    master = v.read(buildDir + '/index.html'),
                     appFiles;
 
-                appFiles = v.getFilteredFileList('www-built');
+                appFiles = v.getFilteredFileList(buildDir);
                 appFiles = appFiles.map(function (file) {
-                    var start = file.indexOf('/www-built/');
+                    var start = file.indexOf('/' + buildDir + '/');
                     start = (start !== -1) ? (start + 11) : 0;
                     return file.substr(start, file.length);
                 });
@@ -425,15 +415,15 @@ define(function (require) {
                 master = master
                         .replace(/<html\s?/, '<html manifest="manifest.appcache" ')
                         .replace(/manifest\.appcache"\s>/, 'manifest.appcache">');
-                v.write('www-built/index.html', master);
+                v.write(buildDir + '/index.html', master);
 
-                return v.command('digest', 'dir=www-built')
+                return v.command('digest', 'dir=' + buildDir)
                 .then(function (stamp) {
                     manifest = v.template(manifest, {
                         files : appFiles.join('\n'),
                         stamp : stamp
                     });
-                    v.write('www-built/manifest.appcache', manifest);
+                    v.write(buildDir + '/manifest.appcache', manifest);
                 });
             })
             .then(function () {
