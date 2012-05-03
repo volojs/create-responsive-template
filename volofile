@@ -177,7 +177,7 @@ define(function (require) {
                         .then(function () {
                             //Copy the git repo data to source area and prep
                             //it to be the master.
-                            v.copyDir(buildDir + '/.git', './git', /./);
+                            v.copyDir(buildDir + '/.git', './.git', /./, false, null, null);
 
                             return v.sequence([
                                 //The root of the project will be use for
