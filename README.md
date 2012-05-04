@@ -32,6 +32,9 @@ For Linux/Unix/OS X:
 For Windows, see the [volo instructions](https://github.com/volojs/volo). It is
 the same basic idea though, fetch the volo file and start using it.
 
+The latest version of this template requires **volo 0.1.2**. You can update
+your version of volo by running `volo rejuvenate`.
+
 Then:
 
     > volo create myproject volojs/create-responsive-template
@@ -101,7 +104,6 @@ directory's contents will be used for the deployment to GitHub Pages:
     To git@github.com:YOUR_GITHUB_USER_NAME/example.git
        2e834ee..320707a  gh-pages -> gh-pages
     GitHub Pages is set up. Check http://YOUR_GITHUB_USER_NAME.github.com/example/ in about 10-15 minutes.
-
 
 After the first ghdeploy, once the www-ghpages directory has been set up, the
 `volo ghdeploy` command will just push any new built code without prompting
