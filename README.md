@@ -35,7 +35,6 @@ the same basic idea though, fetch the volo file and start using it.
 Then:
 
     > volo create myproject volojs/create-responsive-template
-    Will this be an app hosted on GitHub Pages [n]? (answer y or n)
     > cd myproject
     > ../volo appcache
 
@@ -45,15 +44,7 @@ directory.
 You can do development using the `myproject/www` directory in your
 browser.
 
-If you answered "n" to the GitHub Pages question, then the built,
-AppCache-enabled project will be in `myproject/www-built`.
-
-If you answered "y" to the GitHub Pages question, then the built project
-will be in the top level of `myproject`. The entry point to the built,
-AppCache-enabled app will be `myproject/index.html`. The project can be
-committed into the `gh-pages` branch of a GitHub repo. See the
-[GitHub Pages Help](http://help.github.com/pages/) for more information on
-how to use GitHub pages to serve a web app.
+The built, AppCache-enabled project will be in `myproject/www-built`.
 
 ## What Happened
 
@@ -70,6 +61,76 @@ modular code that is easy to debug. When `volo appcache` is run, it builds all
 the JS into one file and removes the use of RequireJS. Additionally, it
 optimizes the CSS files by combining them into one file. Then it generates the
 AppCache application manifest.
+
+## Deploy to GitHub Pages
+
+[GitHub Pages](http://help.github.com/pages/) is a great, free way to host your
+web application. This template comes with an easy way to deploy to GitHub Pages.
+
+First, be sure to build the source files by either running `volo build` or
+`volo appcache`. This will generate the `www-built` build directory. That build
+directory's contents will be used for the deployment to GitHub Pages:
+
+    > volo appcache
+    > volo ghdeploy
+    Log in to GitHub to complete action (your password is not saved.
+    It is sent over SSL to GitHub and converted to an OAuth token)
+    GitHub user name: YOUR_GITHUB_USER_NAME
+    GitHub password: YOUR_GITHUB_PW
+    Contacting GitHub...
+    Save OAuth token for later use [y]? n
+    YOUR_GITHUB_USER_NAME, name of github repo [example]:
+    Initialized empty Git repository in ~/example/www-ghpages/.git/
+    [gh-pages (root-commit) 2e834ee] Create branch.
+     1 files changed, 1 insertions(+), 0 deletions(-)
+     create mode 100644 index.html
+    To git@github.com:YOUR_GITHUB_USER_NAME/example.git
+     * [new branch]      gh-pages -> gh-pages
+    [gh-pages 320707a] Deploy
+     10 files changed, 5045 insertions(+), 1 deletions(-)
+     create mode 100644 css/app.css
+     create mode 100644 img/glyphicons-halflings-white.png
+     create mode 100644 img/glyphicons-halflings.png
+     create mode 100644 img/icon-128.png
+     create mode 100644 img/icon-16.png
+     create mode 100644 img/icon-48.png
+     rewrite index.html (100%)
+     create mode 100644 js/app.js
+     create mode 100644 manifest.appcache
+     create mode 100644 manifest.webapp
+    To git@github.com:YOUR_GITHUB_USER_NAME/example.git
+       2e834ee..320707a  gh-pages -> gh-pages
+    GitHub Pages is set up. Check http://YOUR_GITHUB_USER_NAME.github.com/example/ in about 10-15 minutes.
+
+
+After the first ghdeploy, once the www-ghpages directory has been set up, the
+`volo ghdeploy` command will just push any new built code without prompting
+you for any questions.
+
+If you want a custom commit message for the deployment, pass it via m=:
+
+    > volo ghdeploy m="This is a custom commit message"
+
+## Deploy to a custom sub-domain
+
+Once you have GitHub Pages deployment working, you can set it up to be served
+from a subdomain that you own. For instance, if you owned the 'example.com'
+domain name, you could set up `webapp.example.com` to be served from the
+deployed GitHub Pages repo:
+
+    > echo "webapp.example.com" > www/CNAME
+    > volo appcache
+    > volo ghdeploy
+
+Then, go to your domain name registrar and set up an example.com "CNAME" entry
+for webapp.example.com to point to your YOUR_GITHUB_USER_NAME.github.com:
+
+    Hostname: webapp
+    Record Type: CNAME
+    Target Host: YOUR_GITHUB_USER_NAME.github.com
+
+More info in the
+[GitHub Pages Help for Custom Domains](http://help.github.com/pages/#custom_domains).
 
 ## Suggested Workflow
 
@@ -110,8 +171,7 @@ To optimize the project for deployment, run:
     > volo build
 
 This will create an optimized version of the project in a **www-built**
-directory, if it is a non-GitHub Pages project. For GitHub Pages projects, the
-built code will be in the root of the project directory.
+directory.
 
 The js/app.js file will be optimized to include all of its
 dependencies.
