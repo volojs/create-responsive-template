@@ -4,7 +4,7 @@ It can be challenging to set up a good looking web project whose layout responds
 well to different screen resolutions and work well in mobile and offline
 environments.
 
-This project template sets up a repsonsive webapp that uses
+This project template sets up a responsive webapp that uses
 [Twitter Bootstrap](http://twitter.github.com/bootstrap/) along with
 [AppCache](https://developer.mozilla.org/en/Using_Application_Cache) and
 [network events](https://developer.mozilla.org/en/DOM/window.navigator.onLine).
