@@ -233,10 +233,16 @@ module.exports = {
     ghdeploy: require('volo-ghdeploy')(buildDir, pagesDir),
 
     //Runs less on the .less files in tools/less to generate the CSS files.
-    less: [
-        'node tools/oneless.js tools/less/bootstrap.less > www/css/bootstrap.css',
-        'node tools/oneless.js tools/less/responsive.less > www/css/bootstrap-responsive.css'
-    ],
+    less: function (d, v, namedArgs) {
+        q.all([
+            v.exec('node tools/oneless.js tools/less/bootstrap.less > www/css/bootstrap.css'),
+            v.exec('node tools/oneless.js tools/less/responsive.less > www/css/bootstrap-responsive.css')
+        ])
+        .then(function () {
+            d.resolve();
+        })
+        .fail(d.reject);
+    },
 
     appcache: function (d, v, namedArgs) {
         var hasBuilt = v.exists(buildDir);
