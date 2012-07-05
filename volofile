@@ -1,29 +1,24 @@
-/*jslint regexp: true */
-/*global define, console, process */
+/*jslint node: true, regexp: true */
+'use strict';
 
-define(function (require) {
-    'use strict';
+var crypto = require('crypto'),
+    fs = require('fs'),
+    path = require('path'),
+    buildDir = 'www-built',
+    pagesDir = 'www-ghpages';
 
-    var amdify = require('amdify'),
-        q = require('q'),
-        crypto = require('crypto'),
-        fs = require('fs'),
-        path = require('path'),
-        github = require('volo/github'),
-        githubAuth = require('volo/github/auth'),
-        buildDir = 'www-built',
-        pagesDir = 'www-ghpages';
+module.exports = {
+    //Run as the result of first setting up this project via a
+    //"volo create" call. Gets the twitter bootstrap code, and
+    //jQuery.
+    onCreate: {
+        run: function (d, v, namedArgs, appName) {
+            var tempName = 'tempbootstrap',
+                q = v.require('q'),
+                amdify = v.require('./commands/amdify'),
+                jsNameRegExp = /bootstrap-(\w*)\.js$/;
 
-    return {
-        //Run as the result of first setting up this project via a
-        //"volo create" call. Gets the twitter bootstrap code, and
-        //jQuery.
-        onCreate: {
-            run: function (d, v, namedArgs, appName) {
-                var tempName = 'tempbootstrap',
-                    jsNameRegExp = /bootstrap-(\w*)\.js$/;
-
-                v.command('add', 'jquery/jquery/1.7.2')
+            v.command('add', 'jquery/jquery/1.7.2')
                 .then(function () {
                     //Grab the twitter bootstrap and jQuery
                     return v.command('create', tempName, 'twitter/bootstrap');
@@ -36,7 +31,9 @@ define(function (require) {
                     jsFiles.forEach(function (file) {
                         //Pull off the name part from bootstrap-name.js pattern.
                         var match = jsNameRegExp.exec(file),
-                            name, destName, damd;
+                            name,
+                            destName,
+                            damd;
 
                         if (!match) {
                             return;
@@ -72,43 +69,45 @@ define(function (require) {
                     });
                 })
                 .then(d.resolve, d.reject);
-            }
+        }
+    },
+
+    //Builds the JS and CSS into one file each. If you want to do
+    //dynamic loading of scripts, pass -dynamic to the build, and
+    //require.js will be used to load scripts.
+    build: {
+        flags: {
+            //Does not print the build output.
+            'q': 'quiet',
+            //Uses dynamic loading via require.js instead of building
+            //all the modules in with almond.
+            'dynamic': 'dynamic'
         },
 
-        //Builds the JS and CSS into one file each. If you want to do
-        //dynamic loading of scripts, pass -dynamic to the build, and
-        //require.js will be used to load scripts.
-        build: {
-            flags: {
-                //Does not print the build output.
-                'q': 'quiet',
-                //Uses dynamic loading via require.js instead of building
-                //all the modules in with almond.
-                'dynamic': 'dynamic'
-            },
+        run: function (d, v, namedArgs) {
+            var q = v.require('q');
 
-            run: function (d, v, namedArgs) {
-                q.call(function () {
-                    //Remove the old dir
-                    v.rm(buildDir);
+            q.call(function () {
+                //Remove the old dir
+                v.rm(buildDir);
 
-                    if (!namedArgs.dynamic) {
-                        //Copy the directory for output.
-                        v.copyDir('www', buildDir);
+                if (!namedArgs.dynamic) {
+                    //Copy the directory for output.
+                    v.copyDir('www', buildDir);
 
-                        //Remove the js dir from the built area, will be
-                        //replaced by an optimized app.js
-                        v.rm(buildDir + '/js');
+                    //Remove the js dir from the built area, will be
+                    //replaced by an optimized app.js
+                    v.rm(buildDir + '/js');
 
-                        //Do the CSS optimization
-                        return v.spawn('node', ['tools/r.js', '-o',
-                                                'cssIn=www/css/app.css',
-                                                'out=' + buildDir + '/css/app.css'], {
-                            useConsole: !namedArgs.quiet
-                        });
-                    }
-                    return undefined;
-                })
+                    //Do the CSS optimization
+                    return v.spawn('node', ['tools/r.js', '-o',
+                                            'cssIn=www/css/app.css',
+                                            'out=' + buildDir + '/css/app.css'], {
+                        useConsole: !namedArgs.quiet
+                    });
+                }
+                return undefined;
+            })
                 .then(function () {
                     //JS go time
                     var optimize = namedArgs.optimize || 'uglify';
@@ -156,8 +155,8 @@ define(function (require) {
 
                         contents = contents.replace(scriptRegExp,
                             function (match, pre, script, post) {
-                            return pre + 'src="js/app.js"' + post;
-                        });
+                                return pre + 'src="js/app.js"' + post;
+                            });
 
                         v.write(indexName, contents);
                     }
@@ -166,260 +165,100 @@ define(function (require) {
                 .then(function (buildOutput) {
                     d.resolve(buildOutput);
                 }, d.reject);
+        }
+    },
+
+    //Generates an SHA1 digest that represents the contents of the
+    //a directory. Call it like so: "volo digest dir=path/to/directory"
+    digest: {
+        validate: function (namedArgs) {
+            var dir = namedArgs.dir;
+            if (!dir) {
+                return new Error('Please specify a target directory for ' +
+                                 'the digest');
             }
-        },
-
-        //Generates an SHA1 digest that represents the contents of the
-        //a directory. Call it like so: "volo digest dir=path/to/directory"
-        digest: {
-            validate: function (namedArgs) {
-                var dir = namedArgs.dir;
-                if (!dir) {
-                    return new Error('Please specify a target directory for ' +
-                                     'the digest');
-                }
-                if (!path.existsSync(dir)) {
-                    return new Error('Target directory for digest does ' +
-                                     'not exist: ' + dir);
-                }
-                return undefined;
-            },
-
-            run: function (d, v, namedArgs) {
-                var dir = namedArgs.dir,
-                    files = v.getFilteredFileList(dir),
-                    digests = [],
-                    i = 0;
-
-                function getDigest(fileName) {
-                    var shaSum = crypto.createHash('sha1'),
-                        d = q.defer(),
-                        stream = fs.ReadStream(fileName);
-
-                    stream.on('data', function(data) {
-                        shaSum.update(data);
-                    });
-
-                    stream.on('end', function() {
-                        d.resolve(shaSum.digest('base64'));
-                    });
-
-                    return d.promise;
-                }
-
-                function digestFile(fileName) {
-                    getDigest(fileName).then(function (digest) {
-                        var shaSum;
-
-                        digests[i] = digest;
-                        i += 1;
-
-                        if (i < files.length) {
-                            digestFile(files[i]);
-                        } else {
-                            //All done, now generate the final digest,
-                            //using the combination of the other digests
-                            shaSum = crypto.createHash('sha1');
-                            shaSum.update(digests.join(','));
-                            d.resolve(shaSum.digest('base64'));
-                        }
-                    });
-                }
-
-                digestFile(files[0]);
+            if (!path.existsSync(dir)) {
+                return new Error('Target directory for digest does ' +
+                                 'not exist: ' + dir);
             }
+            return undefined;
         },
 
-        ghdeploy: {
-            run: function (d, v, namedArgs) {
-                var spawnOptions = {
-                    useConsole: !namedArgs.quiet
-                },
-                authInfo, repoName, hasGhPages;
+        run: function (d, v, namedArgs) {
+            var q = v.require('q'),
+                dir = namedArgs.dir,
+                files = v.getFilteredFileList(dir),
+                digests = [],
+                i = 0;
 
-                q.call(function () {
-                    //First check if there is already a repo
-                    if (!v.exists(buildDir)) {
-                        throw new Error('Run build or appcache first to generate a deploy target in "www-built".');
-                    }
+            function getDigest(fileName) {
+                var shaSum = crypto.createHash('sha1'),
+                    d = q.defer(),
+                    stream = fs.ReadStream(fileName);
 
-                    //If already have gh-pages dir, go to next step.
-                    if (v.exists(pagesDir)) {
-                        return;
-                    }
-
-                    //Figure out if already in a github repo.
-                    return githubAuth.fetch({ v: v })
-                    .then(function (info) {
-                        authInfo = info;
-
-                        //Suggest the current directory name as the repo name.
-                        repoName = path.basename(process.cwd());
-
-                        return v.prompt(authInfo.user +
-                                        ', name of github repo [' +
-                                        repoName + ']:');
-                    })
-                    .then(function (promptRepoName) {
-                        var dfd = q.defer();
-
-                        if (promptRepoName) {
-                            repoName = promptRepoName;
-                        }
-
-                        //First check to see if it exists.
-                        github('repos/' + authInfo.user + '/' + repoName)
-                        .then(function (data) {
-                            var sshUrl = data.ssh_url;
-
-                            //Repo exists, see if there is a gh-pages repo
-                            //already
-                            github('repos/' + authInfo.user + '/' + repoName + '/branches')
-                            .then(function (data) {
-                                if (data && data.length) {
-                                    hasGhPages = data.some(function (branch) {
-                                        return branch.name === 'gh-pages';
-                                    });
-                                }
-                                dfd.resolve(sshUrl);
-                            }, dfd.reject);
-                        }, function (err) {
-                            if (err.response.statusCode === 404) {
-                                github('user/repos', {
-                                    method: 'POST',
-                                    token: authInfo.token,
-                                    content: {
-                                        name: repoName
-                                    }
-                                })
-                                .then(function (data) {
-                                    dfd.resolve(data.ssh_url);
-                                }, function (err) {
-                                   dfd.reject(err);
-                                });
-                            } else {
-                                dfd.reject(err);
-                            }
-                        });
-                        return dfd.promise;
-                    })
-                    .then(function (sshUrl) {
-                        //Set up .git.
-                        v.mkdir(pagesDir);
-
-                        //Set up the gh-pages repo in the built area.
-                        return v.withDir(pagesDir, function () {
-                            if (hasGhPages) {
-                                //Set up the git repo locally. Just commit a file
-                                //to get the repo prepped and sent to GitHub.
-                                return v.sequence([
-                                    ['git', 'init'],
-                                    ['git', 'remote', 'add', 'origin', sshUrl],
-                                    //This step mandated by:
-                                    //http://help.github.com/pages/#project_pages_manually
-                                    ['git', 'symbolic-ref', 'HEAD', 'refs/heads/gh-pages'],
-                                    [v,     'rm', '.git/index'],
-                                    ['git', 'clean', '-fdx'],
-
-                                    ['git', 'pull', 'origin', 'gh-pages']
-                                ], spawnOptions);
-                            } else {
-                                //Set up the git repo locally. Just commit a file
-                                //to get the repo prepped and sent to GitHub.
-                                return v.sequence([
-                                    ['git', 'init'],
-                                    ['git', 'remote', 'add', 'origin', sshUrl],
-                                    //This step mandated by:
-                                    //http://help.github.com/pages/#project_pages_manually
-                                    ['git', 'symbolic-ref', 'HEAD', 'refs/heads/gh-pages'],
-                                    [v,     'rm', '.git/index'],
-                                    ['git', 'clean', '-fdx'],
-
-                                    [v,     'write', 'index.html', 'Setting up pages...'],
-                                    ['git', 'add', 'index.html'],
-                                    ['git', 'commit', '-m', 'Create branch.'],
-                                    ['git', 'push', 'origin', 'gh-pages']
-                                ], spawnOptions);
-                            }
-                        });
-                    });
-                })
-                .then(function () {
-                    var message = namedArgs.m;
-                    if (!message) {
-                        message = 'Deploy';
-                    }
-
-                    //Clean up www-ghpages first, but keep .git
-                    if (v.exists(pagesDir)) {
-                        fs.readdirSync(pagesDir).forEach(function (name) {
-                            if (name !== '.git') {
-                                v.rm(pagesDir + '/' + name);
-                            }
-                        });
-                    }
-
-                    //Copy the contents of www-built to www-ghpages
-                    //Copy the directory for output.
-                    v.copyDir(buildDir, pagesDir);
-
-                    //Trigger update to origin.
-                    return v.withDir(pagesDir, function () {
-                        return v.sequence([
-                            //Add any new files
-                            ['git', 'add', '.'],
-                            //Remove any files from git that are not on on disk
-                            ['git', 'add', '-u'],
-                            ['git', 'commit', '-m', message],
-                            ['git', 'push', 'origin', 'gh-pages']
-                        ], spawnOptions);
-                    });
-                })
-                .then(function () {
-                    if (repoName) {
-                        return 'GitHub Pages is set up. Check http://' +
-                                authInfo.user + '.github.com/' + repoName +
-                                '/ in about 10-15 minutes.';
-                    }
-                })
-                .then(d.resolve, d.reject);
-            }
-        },
-
-        //Runs less on the .less files in tools/less to generate the CSS files.
-        less: function (d, v, namedArgs) {
-            q.all([
-                v.exec('node tools/oneless.js tools/less/bootstrap.less > www/css/bootstrap.css'),
-                v.exec('node tools/oneless.js tools/less/responsive.less > www/css/bootstrap-responsive.css')
-            ])
-            .then(function () {
-                d.resolve();
-            })
-            .fail(d.reject);
-        },
-
-        appcache: function (d, v, namedArgs) {
-            var hasBuilt = v.exists(buildDir);
-
-            v.command('build')
-            .then(function () {
-                var manifest = v.read('tools/manifest.appcache'),
-                    master = v.read(buildDir + '/index.html'),
-                    appFiles;
-
-                appFiles = v.getFilteredFileList(buildDir);
-                appFiles = appFiles.map(function (file) {
-                    var start = file.indexOf('/' + buildDir + '/');
-                    start = (start !== -1) ? (start + 11) : 0;
-                    return file.substr(start, file.length);
+                stream.on('data', function (data) {
+                    shaSum.update(data);
                 });
 
-                master = master
-                        .replace(/<html\s?/, '<html manifest="manifest.appcache" ')
-                        .replace(/manifest\.appcache"\s>/, 'manifest.appcache">');
-                v.write(buildDir + '/index.html', master);
+                stream.on('end', function () {
+                    d.resolve(shaSum.digest('base64'));
+                });
 
-                return v.command('digest', 'dir=' + buildDir)
+                return d.promise;
+            }
+
+            function digestFile(fileName) {
+                getDigest(fileName).then(function (digest) {
+                    var shaSum;
+
+                    digests[i] = digest;
+                    i += 1;
+
+                    if (i < files.length) {
+                        digestFile(files[i]);
+                    } else {
+                        //All done, now generate the final digest,
+                        //using the combination of the other digests
+                        shaSum = crypto.createHash('sha1');
+                        shaSum.update(digests.join(','));
+                        d.resolve(shaSum.digest('base64'));
+                    }
+                });
+            }
+
+            digestFile(files[0]);
+        }
+    },
+
+    ghdeploy: require('volo-ghdeploy')(buildDir, pagesDir),
+
+    //Runs less on the .less files in tools/less to generate the CSS files.
+    less: [
+        'node tools/oneless.js tools/less/bootstrap.less > www/css/bootstrap.css',
+        'node tools/oneless.js tools/less/responsive.less > www/css/bootstrap-responsive.css'
+    ],
+
+    appcache: function (d, v, namedArgs) {
+        var hasBuilt = v.exists(buildDir);
+
+        v.command('build').then(function () {
+            var manifest = v.read('tools/manifest.appcache'),
+                master = v.read(buildDir + '/index.html'),
+                appFiles;
+
+            appFiles = v.getFilteredFileList(buildDir);
+            appFiles = appFiles.map(function (file) {
+                var start = file.indexOf('/' + buildDir + '/');
+                start = (start !== -1) ? (start + 11) : 0;
+                return file.substr(start, file.length);
+            });
+
+            master = master
+                    .replace(/<html\s?/, '<html manifest="manifest.appcache" ')
+                    .replace(/manifest\.appcache"\s>/, 'manifest.appcache">');
+            v.write(buildDir + '/index.html', master);
+
+            return v.command('digest', 'dir=' + buildDir)
                 .then(function (stamp) {
                     manifest = v.template(manifest, {
                         files : appFiles.join('\n'),
@@ -427,14 +266,11 @@ define(function (require) {
                     });
                     v.write(buildDir + '/manifest.appcache', manifest);
                 });
-            })
-            .then(function () {
-                //Inform the user of the right mime type, but only do it if
-                //there was not a previous build done.
-                d.resolve(hasBuilt ? '': 'Be sure to set the mime type for ' +
-                          '.appcache files to be: text/cache-manifest');
-            })
-            .fail(d.reject);
-        }
-    };
-});
+        }).then(function () {
+            //Inform the user of the right mime type, but only do it if
+            //there was not a previous build done.
+            d.resolve(hasBuilt ? '' : 'Be sure to set the mime type for ' +
+                      '.appcache files to be: text/cache-manifest');
+        }).fail(d.reject);
+    }
+};
