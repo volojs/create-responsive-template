@@ -1,5 +1,8 @@
 {
     "amd": {
         "baseUrl": "www/js/lib"
+    },
+    "dependencies": {
+        "volo-ghdeploy": "*"
     }
 }
