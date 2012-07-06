@@ -104,7 +104,7 @@ module.exports = {
         }
     },
 
-    //Runs the build, and
+    //Runs the build, and generates the appcache manifest
     appcache: require('volo-appcache')({
         depends: ['build'],
         dir: buildDir
