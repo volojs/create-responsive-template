@@ -3,6 +3,7 @@
         "baseUrl": "www/js/lib"
     },
     "dependencies": {
-        "volo-ghdeploy": "*"
+        "volo-ghdeploy": "*",
+        "volo-appcache": "*"
     }
 }

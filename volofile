@@ -8,70 +8,6 @@ var crypto = require('crypto'),
     pagesDir = 'www-ghpages';
 
 module.exports = {
-    //Run as the result of first setting up this project via a
-    //"volo create" call. Gets the twitter bootstrap code, and
-    //jQuery.
-    onCreate: {
-        run: function (d, v, namedArgs, appName) {
-            var tempName = 'tempbootstrap',
-                q = v.require('q'),
-                amdify = v.require('./commands/amdify'),
-                jsNameRegExp = /bootstrap-(\w*)\.js$/;
-
-            v.command('add', 'jquery/jquery/1.7.2', 'jquery')
-                .then(function () {
-                    //Grab the twitter bootstrap and jQuery
-                    return v.command('create', tempName, 'twitter/bootstrap');
-                })
-                .then(function () {
-                    //Move the JS to the right location.
-                    var jsFiles = v.getFilteredFileList(tempName + '/js', /\.js$/, /js[\/\\]tests[\/\\]/),
-                        promises = [];
-
-                    jsFiles.forEach(function (file) {
-                        //Pull off the name part from bootstrap-name.js pattern.
-                        var match = jsNameRegExp.exec(file),
-                            name,
-                            destName,
-                            damd;
-
-                        if (!match) {
-                            return;
-                        }
-
-                        name = jsNameRegExp.exec(file)[1];
-                        destName = 'www/js/lib/bootstrap/' + name + '.js';
-                        damd = q.defer();
-
-                        v.copyFile(file, destName);
-
-                        //Convert the file to AMD style
-                        amdify.run.apply(amdify, [damd, v, {
-                            depends: 'jquery'
-                        }, destName]);
-
-                        promises.push(damd);
-                    });
-
-                    //Wait for all the amdify calls to finish.
-                    return q.all(promises);
-                })
-                .then(function () {
-                    //Copy the images over.
-                    v.copyDir(tempName + '/img', 'www/img');
-
-                    //Copy the less files.
-                    v.copyDir(tempName + '/less', 'tools/less');
-
-                    //Compile the CSS.
-                    return v.command('less').then(function () {
-                        v.rm(tempName);
-                    });
-                })
-                .then(d.resolve, d.reject);
-        }
-    },
-
     //Builds the JS and CSS into one file each. If you want to do
     //dynamic loading of scripts, pass -dynamic to the build, and
     //require.js will be used to load scripts.
@@ -168,68 +104,13 @@ module.exports = {
         }
     },
 
-    //Generates an SHA1 digest that represents the contents of the
-    //a directory. Call it like so: "volo digest dir=path/to/directory"
-    digest: {
-        validate: function (namedArgs) {
-            var dir = namedArgs.dir;
-            if (!dir) {
-                return new Error('Please specify a target directory for ' +
-                                 'the digest');
-            }
-            if (!path.existsSync(dir)) {
-                return new Error('Target directory for digest does ' +
-                                 'not exist: ' + dir);
-            }
-            return undefined;
-        },
+    //Runs the build, and
+    appcache: require('volo-appcache')({
+        depends: ['build'],
+        dir: buildDir
+    }),
 
-        run: function (d, v, namedArgs) {
-            var q = v.require('q'),
-                dir = namedArgs.dir,
-                files = v.getFilteredFileList(dir),
-                digests = [],
-                i = 0;
-
-            function getDigest(fileName) {
-                var shaSum = crypto.createHash('sha1'),
-                    d = q.defer(),
-                    stream = fs.ReadStream(fileName);
-
-                stream.on('data', function (data) {
-                    shaSum.update(data);
-                });
-
-                stream.on('end', function () {
-                    d.resolve(shaSum.digest('base64'));
-                });
-
-                return d.promise;
-            }
-
-            function digestFile(fileName) {
-                getDigest(fileName).then(function (digest) {
-                    var shaSum;
-
-                    digests[i] = digest;
-                    i += 1;
-
-                    if (i < files.length) {
-                        digestFile(files[i]);
-                    } else {
-                        //All done, now generate the final digest,
-                        //using the combination of the other digests
-                        shaSum = crypto.createHash('sha1');
-                        shaSum.update(digests.join(','));
-                        d.resolve(shaSum.digest('base64'));
-                    }
-                });
-            }
-
-            digestFile(files[0]);
-        }
-    },
-
+    //Deploys the code to github pages.
     ghdeploy: require('volo-ghdeploy')(buildDir, pagesDir),
 
     //Runs less on the .less files in tools/less to generate the CSS files.
@@ -245,39 +126,67 @@ module.exports = {
         .fail(d.reject);
     },
 
-    appcache: function (d, v, namedArgs) {
-        var hasBuilt = v.exists(buildDir);
+    //Run as the result of first setting up this project via a
+    //"volo create" call. Gets the twitter bootstrap code, and
+    //jQuery.
+    onCreate: {
+        run: function (d, v, namedArgs, appName) {
+            var tempName = 'tempbootstrap',
+                q = v.require('q'),
+                amdify = v.require('./commands/amdify'),
+                jsNameRegExp = /bootstrap-(\w*)\.js$/;
 
-        v.command('build').then(function () {
-            var manifest = v.read('tools/manifest.appcache'),
-                master = v.read(buildDir + '/index.html'),
-                appFiles;
+            v.command('add', 'jquery/jquery/1.7.2', 'jquery')
+                .then(function () {
+                    //Grab the twitter bootstrap and jQuery
+                    return v.command('create', tempName, 'twitter/bootstrap');
+                })
+                .then(function () {
+                    //Move the JS to the right location.
+                    var jsFiles = v.getFilteredFileList(tempName + '/js', /\.js$/, /js[\/\\]tests[\/\\]/),
+                        promises = [];
 
-            appFiles = v.getFilteredFileList(buildDir);
-            appFiles = appFiles.map(function (file) {
-                var start = file.indexOf('/' + buildDir + '/');
-                start = (start !== -1) ? (start + 11) : 0;
-                return file.substr(start, file.length);
-            });
+                    jsFiles.forEach(function (file) {
+                        //Pull off the name part from bootstrap-name.js pattern.
+                        var match = jsNameRegExp.exec(file),
+                            name,
+                            destName,
+                            damd;
 
-            master = master
-                    .replace(/<html\s?/, '<html manifest="manifest.appcache" ')
-                    .replace(/manifest\.appcache"\s>/, 'manifest.appcache">');
-            v.write(buildDir + '/index.html', master);
+                        if (!match) {
+                            return;
+                        }
 
-            return v.command('digest', 'dir=' + buildDir)
-                .then(function (stamp) {
-                    manifest = v.template(manifest, {
-                        files : appFiles.join('\n'),
-                        stamp : stamp
+                        name = jsNameRegExp.exec(file)[1];
+                        destName = 'www/js/lib/bootstrap/' + name + '.js';
+                        damd = q.defer();
+
+                        v.copyFile(file, destName);
+
+                        //Convert the file to AMD style
+                        amdify.run.apply(amdify, [damd, v, {
+                            depends: 'jquery'
+                        }, destName]);
+
+                        promises.push(damd);
                     });
-                    v.write(buildDir + '/manifest.appcache', manifest);
-                });
-        }).then(function () {
-            //Inform the user of the right mime type, but only do it if
-            //there was not a previous build done.
-            d.resolve(hasBuilt ? '' : 'Be sure to set the mime type for ' +
-                      '.appcache files to be: text/cache-manifest');
-        }).fail(d.reject);
+
+                    //Wait for all the amdify calls to finish.
+                    return q.all(promises);
+                })
+                .then(function () {
+                    //Copy the images over.
+                    v.copyDir(tempName + '/img', 'www/img');
+
+                    //Copy the less files.
+                    v.copyDir(tempName + '/less', 'tools/less');
+
+                    //Compile the CSS.
+                    return v.command('less').then(function () {
+                        v.rm(tempName);
+                    });
+                })
+                .then(d.resolve, d.reject);
+        }
     }
 };
