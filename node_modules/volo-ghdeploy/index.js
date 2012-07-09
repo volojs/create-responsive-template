@@ -9,7 +9,7 @@
     "keywords": [
         "volo"
     ],
-    "version": "0.0.2",
+    "version": "0.0.3",
     "homepage": "http://github.com/volojs/volo-ghdeploy",
     "author": "James Burke <jrburke@gmail.com> (http://github.com/jrburke)",
     "licenses": [
@@ -59,6 +59,7 @@ module.exports = function (buildDir, pagesDir) {
                 github = v.require('./lib/github'),
                 githubAuth = v.require('./lib/github/auth'),
                 authInfo,
+                repoOwner,
                 repoName,
                 hasGhPages;
 
@@ -81,27 +82,40 @@ module.exports = function (buildDir, pagesDir) {
                         authInfo = info;
 
                         //Suggest the current directory name as the repo name.
-                        repoName = path.basename(process.cwd());
+                        repoName = authInfo.user + '/' + path.basename(process.cwd());
 
                         return v.prompt(authInfo.user +
                                         ', name of github repo [' +
                                         repoName + ']:');
                     })
                     .then(function (promptRepoName) {
-                        var dfd = q.defer();
+                        var dfd = q.defer(),
+                            repoParts;
 
                         if (promptRepoName) {
                             repoName = promptRepoName;
                         }
 
+                        //Split repo name into owner and repo
+                        repoParts = repoName.split('/');
+
+                        if (repoParts.length === 1) {
+                            repoOwner = authInfo.user;
+                        } else if (repoParts.length === 2) {
+                            repoOwner = repoParts[0];
+                            repoName = repoParts[1];
+                        } else {
+                            return new Error('Invalid repo name: ' + repoName);
+                        }
+
                         //First check to see if it exists.
-                        github('repos/' + authInfo.user + '/' + repoName)
+                        github('repos/' + repoOwner + '/' + repoName)
                             .then(function (data) {
                                 var sshUrl = data.ssh_url;
 
                                 //Repo exists, see if there is a gh-pages repo
                                 //already
-                                github('repos/' + authInfo.user + '/' + repoName + '/branches')
+                                github('repos/' + repoOwner + '/' + repoName + '/branches')
                                     .then(function (data) {
                                         if (data && data.length) {
                                             hasGhPages = data.some(function (branch) {
@@ -112,20 +126,25 @@ module.exports = function (buildDir, pagesDir) {
                                     }, dfd.reject);
                             }, function (err) {
                                 if (err.response.statusCode === 404) {
-                                    github('user/repos', {
-                                        method: 'POST',
-                                        token: authInfo.token,
-                                        content: {
-                                            name: repoName
-                                        }
-                                    })
-                                        .then(function (data) {
+                                    if (repoOwner !== authInfo.user) {
+                                        return new Error('Please create the ' +
+                                            repoOwner + '/' + repoName +
+                                            ' repo on GitHub first before proceeding');
+                                    } else {
+                                        github('user/repos', {
+                                            method: 'POST',
+                                            token: authInfo.token,
+                                            content: {
+                                                name: repoName
+                                            }
+                                        }).then(function (data) {
                                             dfd.resolve(data.ssh_url);
                                         }, function (err) {
                                             dfd.reject(err);
                                         });
+                                    }
                                 } else {
-                                    dfd.reject(err);
+                                    return new Error(err);
                                 }
                             });
                         return dfd.promise;
@@ -205,7 +224,7 @@ module.exports = function (buildDir, pagesDir) {
                 .then(function () {
                     if (repoName) {
                         return 'GitHub Pages is set up. Check http://' +
-                                authInfo.user + '.github.com/' + repoName +
+                                repoOwner + '.github.com/' + repoName +
                                 '/ in about 10-15 minutes.';
                     }
                 })
