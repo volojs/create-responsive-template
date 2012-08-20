@@ -16,27 +16,16 @@ or [Chrome Store Apps](https://chrome.google.com/webstore/category/home).
 Since the goal of the project is to target more modern browsers with AppCache
 support, older browsers like IE 6-9 are not supported.
 
-**Videos about the template**:
-
-* https://vimeo.com/36997211 - original post
-* https://vimeo.com/41541859 - latest update with GitHub auth
-
 ## Usage
 
 This project uses [volo](https://github.com/volojs/volo) to do the template
 setup and for generating the builds and AppCache. It is easy to install and use.
-Just be sure to have [Node](http://nodejs.org/) installed first.
+Just be sure to have [Node](http://nodejs.org/) installed first. Then use npm,
+which is installed as part of Node, to install volo:
 
-For Linux/Unix/OS X:
+To install volo:
 
-    > curl https://raw.github.com/volojs/volo/latest/dist/volo > volo
-    > chmod +x volo
-
-For Windows, see the [volo instructions](https://github.com/volojs/volo). It is
-the same basic idea though, fetch the volo file and start using it.
-
-The latest version of this template requires **volo 0.1.2**. You can update
-your version of volo by running `volo rejuvenate`.
+    > npm install -g volo
 
 Then:
 
