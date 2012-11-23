@@ -136,7 +136,7 @@ module.exports = {
                 amdify = v.require('./commands/amdify'),
                 jsNameRegExp = /bootstrap-(\w*)\.js$/;
 
-            v.command('add', 'jquery/jquery/1.7.2', 'jquery')
+            v.command('add', 'jquery/jquery/~1.8.0', 'jquery')
                 .then(function () {
                     //Grab the twitter bootstrap and jQuery
                     return v.command('create', tempName, 'twitter/bootstrap');
