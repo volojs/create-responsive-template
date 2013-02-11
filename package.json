@@ -1,9 +1,12 @@
 {
+    "name": "volojs_create-responsive-template",
+    "version": "0.0.0",
     "amd": {
         "baseUrl": "www/js/lib"
     },
     "dependencies": {
         "volo-ghdeploy": "*",
-        "volo-appcache": "*"
+        "volo-appcache": "*",
+        "less": ">= 1.3.0"
     }
 }

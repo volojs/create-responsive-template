@@ -114,16 +114,12 @@ module.exports = {
     ghdeploy: require('volo-ghdeploy')(buildDir, pagesDir),
 
     //Runs less on the .less files in tools/less to generate the CSS files.
-    less: function (d, v, namedArgs) {
-        var q = v.require('q');
-        q.all([
-            v.exec('node tools/oneless.js tools/less/bootstrap.less > www/css/bootstrap.css'),
-            v.exec('node tools/oneless.js tools/less/responsive.less > www/css/bootstrap-responsive.css')
-        ])
-        .then(function () {
-            d.resolve();
-        })
-        .fail(d.reject);
+    less: {
+        summary: 'Runs less on the .less files in tools/less to generate the CSS files.',
+        run: [
+            'node node_modules/less/bin/lessc tools/less/bootstrap.less www/css/bootstrap.css',
+            'node node_modules/less/bin/lessc tools/less/responsive.less www/css/bootstrap-responsive.css'
+        ]
     },
 
     //Run as the result of first setting up this project via a
@@ -136,7 +132,11 @@ module.exports = {
                 amdify = v.require('./commands/amdify'),
                 jsNameRegExp = /bootstrap-(\w*)\.js$/;
 
-            v.command('add', 'jquery/jquery/~1.8.0', 'jquery')
+            //First replace the name in the package.json with name from
+            //creation.
+            v.write('package.json', v.read('package.json').replace(/"name": "[^"]+"/, '"name": "' + appName + '"'));
+
+            v.command('add', 'jquery/jquery/~1.9.0', 'jquery')
                 .then(function () {
                     //Grab the twitter bootstrap and jQuery
                     return v.command('create', tempName, 'twitter/bootstrap');
