@@ -87,7 +87,7 @@ module.exports = {
                     if (!namedArgs.dynamic) {
                         var indexName = buildDir + '/index.html',
                             contents = v.read(indexName),
-                            scriptRegExp = /(<script[^>]+data-main="[^"]+"[^>]+)(src="[^"]+")([^>]+>\s*<\/script>)/;
+                            scriptRegExp = /(<script[^>]+data-main="[^"]+"[^>]+)(src="[^"]+")([^>]*>\s*<\/script>)/;
 
                         contents = contents.replace(scriptRegExp,
                             function (match, pre, script, post) {
