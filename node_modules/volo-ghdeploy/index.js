@@ -9,7 +9,7 @@
     "keywords": [
         "volo"
     ],
-    "version": "0.0.3",
+    "version": "0.0.4",
     "homepage": "http://github.com/volojs/volo-ghdeploy",
     "author": "James Burke <jrburke@gmail.com> (http://github.com/jrburke)",
     "licenses": [
@@ -153,23 +153,21 @@ module.exports = function (buildDir, pagesDir) {
                         //Set up .git.
                         v.mkdir(pagesDir);
 
-                        //Set up the gh-pages repo in the built area.
-                        return v.withDir(pagesDir, function () {
-                            if (hasGhPages) {
-                                //Set up the git repo locally. Just commit a file
-                                //to get the repo prepped and sent to GitHub.
-                                return v.sequence([
-                                    ['git', 'init'],
-                                    ['git', 'remote', 'add', 'origin', sshUrl],
-                                    //This step mandated by:
-                                    //http://help.github.com/pages/#project_pages_manually
-                                    ['git', 'symbolic-ref', 'HEAD', 'refs/heads/gh-pages'],
-                                    [v,     'rm', '.git/index'],
-                                    ['git', 'clean', '-fdx'],
-
-                                    ['git', 'pull', 'origin', 'gh-pages']
-                                ], spawnOptions);
-                            } else {
+                        if (hasGhPages) {
+                            //Set up the git repo locally. Just commit a file
+                            //to get the repo prepped and sent to GitHub.
+                            return v.sequence([
+                                ['git', 'clone', sshUrl, pagesDir]
+                            ], spawnOptions).then(function () {
+                                return v.withDir(pagesDir, function () {
+                                    return v.sequence([
+                                        ['git', 'checkout', 'gh-pages']
+                                    ], spawnOptions);
+                                });
+                            });
+                        } else {
+                            //Set up the gh-pages repo in the built area.
+                            return v.withDir(pagesDir, function () {
                                 //Set up the git repo locally. Just commit a file
                                 //to get the repo prepped and sent to GitHub.
                                 return v.sequence([
@@ -186,10 +184,10 @@ module.exports = function (buildDir, pagesDir) {
                                     ['git', 'commit', '-m', 'Create branch.'],
                                     ['git', 'push', 'origin', 'gh-pages']
                                 ], spawnOptions);
-                            }
-                        });
+                            });
+                        }
                     });
-            })
+                })
                 .then(function () {
                     var message = namedArgs.m;
                     if (!message) {
