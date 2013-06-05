@@ -23,7 +23,7 @@ module.exports = {
         run: function (d, v, namedArgs) {
             var q = v.require('q');
 
-            q.call(function () {
+            (q.fcall || q.call)(function () {
                 //Remove the old dir
                 v.rm(buildDir);
 
