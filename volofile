@@ -177,6 +177,9 @@ module.exports = {
                     //Copy the images over.
                     v.copyDir(tempName + '/img', 'www/img');
 
+                    //Copy the fonts over.
+                    v.copyDir(tempName + '/fonts', 'www/fonts');
+
                     //Copy the less files.
                     v.copyDir(tempName + '/less', 'tools/less');
 
