@@ -5,7 +5,7 @@ well to different screen resolutions and work well in mobile and offline
 environments.
 
 This project template sets up a responsive webapp that uses
-[Twitter Bootstrap](http://twitter.github.com/bootstrap/) along with
+[Bootstrap](http://getbootstrap.com/) along with
 [AppCache](https://developer.mozilla.org/en/Using_Application_Cache) and
 [network events](https://developer.mozilla.org/en/DOM/window.navigator.onLine).
 
@@ -45,7 +45,7 @@ The built, AppCache-enabled project will be in `myproject/www-built`.
 
 volo grabbed this project template from GitHub, then:
 
-* Fetched Twitter Bootstrap code from GitHub
+* Fetched Bootstrap code from GitHub
 * Fetched jQuery
 
 It generated the responsive CSS files from Bootstrap's LESS files, and then
@@ -152,7 +152,7 @@ This web project has the following setup:
         `volo add` when run from the project base will install those scripts
         into this directory.
 * tools/ - the build tools to optimize the project. Also contains the LESS
-files used by Twitter Bootstrap to create its CSS.
+files used by Bootstrap to create its CSS.
 
 By default, the package comes with the .css files already generated from
 Bootstrap's .less files. If you edit the tools/less files again, you can
@@ -181,7 +181,7 @@ for the built files and modify the built `index.html` to reference it.
 ## Links
 
 * [HTML5 Rocks - Working Off the Grid](http://www.html5rocks.com/en/mobile/workingoffthegrid.html)
-* [Twitter Bootstrap](http://twitter.github.com/bootstrap/)
+* [Bootstrap](http://getbootstrap.com/)
 * [AppCache](https://developer.mozilla.org/en/Using_Application_Cache)
 * [Online detection](https://developer.mozilla.org/en/DOM/window.navigator.onLine)
 * [RequireJS API](http://requirejs.org/docs/api.html)

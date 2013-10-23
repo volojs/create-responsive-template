@@ -139,7 +139,7 @@ module.exports = {
             v.command('add', 'jquery/jquery/~1.9.0', 'jquery')
                 .then(function () {
                     //Grab the twitter bootstrap and jQuery
-                    return v.command('create', tempName, 'twitter/bootstrap');
+                    return v.command('create', tempName, 'twbs/bootstrap');
                 })
                 .then(function () {
                     //Move the JS to the right location.
