@@ -129,7 +129,7 @@ module.exports = {
             var tempName = 'tempbootstrap',
                 q = v.require('q'),
                 amdify = v.require('./commands/amdify'),
-                jsNameRegExp = /bootstrap-(\w*)\.js$/;
+                jsNameRegExp = /(\w*)\.js$/;
 
             //First replace the name in the package.json with name from
             //creation.
