@@ -117,8 +117,7 @@ module.exports = {
     less: {
         summary: 'Runs less on the .less files in tools/less to generate the CSS files.',
         run: [
-            'node node_modules/less/bin/lessc tools/less/bootstrap.less www/css/bootstrap.css',
-            'node node_modules/less/bin/lessc tools/less/responsive.less www/css/bootstrap-responsive.css'
+            'node node_modules/less/bin/lessc tools/less/bootstrap.less www/css/bootstrap.css'
         ]
     },
 
