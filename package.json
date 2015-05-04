@@ -7,6 +7,6 @@
     "dependencies": {
         "volo-ghdeploy": "*",
         "volo-appcache": "*",
-        "less": ">= 1.3.0"
+        "less": "*"
     }
 }

@@ -135,7 +135,7 @@ module.exports = {
             //creation.
             v.write('package.json', v.read('package.json').replace(/"name": "[^"]+"/, '"name": "' + appName + '"'));
 
-            v.command('add', 'jquery/jquery/~1.9.0', 'jquery')
+            v.command('add', 'jquery/jquery', 'jquery')
                 .then(function () {
                     //Grab the twitter bootstrap and jQuery
                     return v.command('create', tempName, 'twbs/bootstrap');
